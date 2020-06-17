@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import pypozyx
 import sched
-from time import *
+from time import time_ns, sleep
 from datetime import datetime
 class DataCollector(object):
     
@@ -10,6 +10,7 @@ class DataCollector(object):
         self.start_time = time_ns()
         self.time_previous = time_ns()
         self.current_time = self.time_previous
+        self.timeout_s = 0.1
 
         self.record_accel = True
         self.record_gyro = True
@@ -30,6 +31,20 @@ class DataCollector(object):
 
 
     def createDataFile(self,filename = None):
+        """
+        Creates a new csv file with the following default file name,
+        
+        YYYY_MM_DD_HH_MM_SS_agmp.csv
+
+        unless overwritten by the user. Also creates the header.
+
+        Args:
+            filename: [string](optional) custom filename
+        Returns:
+            file: file object
+        """
+
+        # Generate the filename string
         if filename is None:
             now = datetime.now()
             filename = now.strftime("%Y_%m_%d_%H_%M_%S")
@@ -43,6 +58,7 @@ class DataCollector(object):
                 filename += "p"
             filename = filename + ".csv"
 
+        # Generate the header string
         header = "Timestamp (ns),"
         if self.record_accel:
             header += "Accel_x (mg), Accel_y (mg), Accel_z (mg),"
@@ -54,42 +70,64 @@ class DataCollector(object):
             header += "Pressure (Pa),"
         header += "\n"
         
+        # Create the file and insert the header.
         file = open(filename,"a")
         file.truncate(0)
         file.write(header)
         return file
 
-    def record(self, duration, frequency = 100,):
+    def record(self, duration):
+        """
+        Streams data to screen and saves to a file for a given duration.
 
+        Args:
+            duration: [float] Amount of time to stream data, in seconds.
+        """
         file = self.createDataFile()
 
         self.start_time = time_ns()
 
-        next_collect_time = time_ns()
         while (time_ns() - self.start_time)*(10**-9) < duration:
-            
-            #if abs(next_collect_time - time_ns()) < 10000:
-                
-            data_string = self.collectData()
+
+            data_string = self.getData()
+
             # Write to file
             print(data_string[:-1])
             file.write(data_string)
-            next_collect_time += (1/frequency)*(10**9)
-
-            sleep(1/frequency - 0.003)
                 
 
         # Close file
         file.flush()
         file.close()
 
+    def stream(self, duration):
+        """
+        Prints data to screen for a given duration.
 
-    def collectData(self):
+        Args:
+            duration: [float] Amount of time to stream data, in seconds.
+        """
+
+        self.start_time = time_ns()
+        while (time_ns() - self.start_time)*(10**-9) < duration:
+            data_string = self.getData()
+            # Write to file
+            print(data_string[:-1])
+
+    def getData(self):
+        """ 
+        Collects the data from the PozyxSerial device as soon as a new data point is available."
+        """
+
         # Containers for storing the data 
         accel_data = pypozyx.Acceleration()
         gyro_data = pypozyx.AngularVelocity()
         mag_data = pypozyx.Magnetic()
         pres_data = pypozyx.Pressure()
+
+        # Wait for new data to become available
+        interrupt_register = pypozyx.SingleRegister()
+        self.pozyx.waitForFlagSafe(pypozyx.PozyxBitmasks.INT_MASK_IMU, self.timeout_s, interrupt_register)
 
         # Get the data
         status = self.pozyx.getAcceleration_mg(accel_data)
@@ -117,8 +155,6 @@ class DataCollector(object):
 
         return data_string
 
-
-
 if __name__ == "__main__":
     dc = DataCollector()
-    dc.record(3600*8)
+    dc.stream(10)
