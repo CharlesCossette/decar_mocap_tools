@@ -211,7 +211,7 @@ class DataCollector(object):
 
     def getData(self):
         """ 
-        Collects the data from the PozyxSerial device as soon as a new data point is available."
+        Collects the data from the PozyxSerial device(s) as soon as a new data point is available."
         """
 
         # Containers for storing the data 
