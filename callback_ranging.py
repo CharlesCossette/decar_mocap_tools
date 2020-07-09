@@ -7,7 +7,7 @@ pozyx = PozyxSerial(get_first_pozyx_serial_port())
 destination_id = NetworkID(0x6f61)
 
 
-class AsynchorousReader(object):
+class AsynchronousReader(object):
     def __init__(self):
         self.just_ranged = False
 
@@ -50,7 +50,7 @@ class AsynchorousReader(object):
         print("Got sensor data {}".format(str(time_ns()) + ", " + str(sensor_data)))
 
 # start up the ranging
-ar = AsynchorousReader()
+ar = AsynchronousReader()
 ar.start_ranging()
 interrupt_register = SingleRegister()
 timeout_s = 1
