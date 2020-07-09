@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import pypozyx
 from time import time_ns, sleep
 from datetime import datetime
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     dc = DataCollector()
     dc.record_quat = False
     dc.record_range = False
-    dc.record(30)
+    dc.stream(30)
     #device_list = dc.findNeighbors()
 
     
