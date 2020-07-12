@@ -2,7 +2,16 @@
 import pypozyx
 from time import time_ns, sleep
 from datetime import datetime
+"""
+This code is currently applicable for a device (such as a raspberry pi)
+which has many pozyx devices connected to it through USB. This code will 
+automatically detect all the pozyx devices connected to the master device, 
+as well as any other pozyx devices that are active within UWB range.
 
+This code can then be used to collect IMU data from the connected devices,
+and range data between the connected devices and all other active pozyx 
+devices in UWB range.
+"""
 class DataCollector(object):
     
     def __init__(self):
