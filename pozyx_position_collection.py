@@ -18,6 +18,7 @@ class PositionCollector(object):
         self.current_time = self.time_previous
 
         self.pozyxs = self.findPozyxSerial()
+        self.findNeighbors()
         self.setAnchorsManual(anchors)
         print('Initalization complete.')
 
@@ -46,6 +47,31 @@ class PositionCollector(object):
             pozyx_serials.append(pozyx)
             
         return pozyx_serials
+
+    def findNeighbors(self):
+        """ 
+        Automatically discovers any pozyx anchor or tag devices within UWB range.
+
+        Returns:
+            device_list: [pypozyx.DeviceList] list containing the device IDs
+        """
+        for pozyx in self.pozyxs:
+            who_am_i = pypozyx.NetworkID()
+            status = pozyx.getNetworkId(who_am_i)
+            status = pozyx.clearDevices()
+            status = pozyx.doDiscoveryAll()
+
+            device_list_size = pypozyx.SingleRegister()
+            status = pozyx.getDeviceListSize(device_list_size)
+
+            device_list = pypozyx.DeviceList(list_size = device_list_size.value)
+            status = pozyx.getDeviceIds(device_list)
+
+            id_string = "Device " + str(hex(who_am_i.id))+" has discovered the following other devices: "
+            for id in device_list.data:
+                id_string += str(hex(id)) + ", "
+                print(id_string)
+            return device_list
 
     def setAnchorsManual(self,anchors):
         """Adds the manually measured anchors to the Pozyx's device list one for one."""
@@ -159,12 +185,13 @@ class PositionCollector(object):
             
             status = pozyx.doPositioning(position, self.dimension, self.algorithm)
 
-            data_string += str(time_ns() - self.start_time) + ","
-            data_string += idx_pozyx*","
-            data_string += str(position.x) + ","
-            data_string += str(position.y) + ","
-            data_string += str(position.z) + ","
-            data_string += "\n"
+            if status is pypozyx.POZYX_SUCCESS:
+                data_string += str(time_ns()) + ","
+                data_string += idx_pozyx*","*3
+                data_string += str(position.x) + ","
+                data_string += str(position.y) + ","
+                data_string += str(position.z) + ","
+                data_string += "\n"
 
 
         return data_string
@@ -173,11 +200,12 @@ class PositionCollector(object):
 if __name__ == "__main__":
 
     # necessary data for calibration, change the IDs and coordinates yourself according to your measurement
-    anchors = [pypozyx.DeviceCoordinates(0xA001, 1, pypozyx.Coordinates(0, 0, 2790)),
-               pypozyx.DeviceCoordinates(0xA002, 1, pypozyx.Coordinates(10490, 0, 2790)),
-               pypozyx.DeviceCoordinates(0xA003, 1, pypozyx.Coordinates(-405, 6000, 2790)),
-               pypozyx.DeviceCoordinates(0xA004, 1, pypozyx.Coordinates(10490, 6500, 2790))]
+    anchors = [pypozyx.DeviceCoordinates(0x6f4a, 1, pypozyx.Coordinates(3272, -2122, 1831)),
+               pypozyx.DeviceCoordinates(0x6f58, 1, pypozyx.Coordinates(-106, 2871, 1620)),
+               pypozyx.DeviceCoordinates(0x6f5f, 1, pypozyx.Coordinates(5758, 1901, 2120)),
+               pypozyx.DeviceCoordinates(0x6f60, 1, pypozyx.Coordinates(-3667, 176, 1820)),
+               pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(150, -2091, 472))]
 
     pc = PositionCollector(anchors)
-    pc.stream(30)
+    pc.record(180)
     

@@ -290,7 +290,7 @@ class DataCollector(object):
 if __name__ == "__main__":
     dc = DataCollector()
     dc.record_quat = False
-    dc.record_range = False
+    dc.record_range = True
     dc.stream(30)
     #device_list = dc.findNeighbors()
 
