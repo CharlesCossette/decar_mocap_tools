@@ -4,7 +4,7 @@ from datetime import datetime
 
 # IMU Settings file stored in /home/pi/.config/sense_hat/RTIMULib.ini
 
-class DataCollector(object):
+class SenseHatDataCollector(object):
     
     def __init__(self):
         self.record_accel = True
@@ -117,13 +117,14 @@ class DataCollector(object):
             data = self.sense._imu.getIMUData()
             accel_data = data['accel']
             gyro_data = data['gyro']
+            mag_data = data['compass']
             timestamp = 0.5*(timestamp + time_ns())
-            
-
-            """
-            mag_data = self.sense.get_compass_raw()
-            att_data = self.sense.get_orientation_radians()
             pres_data = self.sense.get_pressure()
+            temp_data = self.sense.get_temperature()
+            """
+            
+            att_data = self.sense.get_orientation_radians()
+            
             temp_data = self.sense.get_temperature()
             """
             data_string += str(timestamp) + ","
@@ -136,22 +137,24 @@ class DataCollector(object):
             data_string += str(gyro_data[1]) + ","
             data_string += str(gyro_data[2]) + ","
 
-            """
-            data_string += str(mag_data['x']) + ","
-            data_string += str(mag_data['y']) + ","
-            data_string += str(mag_data['z']) + ","
+            
+            data_string += str(mag_data[0]) + ","
+            data_string += str(mag_data[1]) + ","
+            data_string += str(mag_data[2]) + ","
 
+
+            data_string += " ,"*3
+            data_string += str(pres_data)  + ","
+            data_string += str(temp_data) + ","
+            """
             data_string += str(att_data['roll']) + ","
             data_string += str(att_data['pitch']) + ","
             data_string += str(att_data['yaw']) + ","
-
-            data_string += str(pres_data)  + ","
-            data_string += str(temp_data) + ","
             """
             data_string += "\n"
             self.counter += 1
         return data_string
 
 if __name__ == "__main__":
-    dc = DataCollector()
-    dc.stream(30)
+    dc = SenseHatDataCollector()
+    dc.record(10)
