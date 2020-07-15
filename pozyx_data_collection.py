@@ -340,7 +340,7 @@ class PozyxDataCollector(object):
 
 if __name__ == "__main__":
     dc = PozyxDataCollector()
-  #  dc.stream(30)       # To stream data to screen without saving to file
-    dc.record(10)      # To stream data to screen and save to a file
+    dc.stream(30)       # To stream data to screen without saving to file
+  #  dc.record(10)      # To stream data to screen and save to a file
 
     
