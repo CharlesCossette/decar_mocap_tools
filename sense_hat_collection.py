@@ -154,4 +154,4 @@ class DataCollector(object):
 
 if __name__ == "__main__":
     dc = DataCollector()
-    dc.record(180)
+    dc.stream(30)
