@@ -34,8 +34,10 @@ class DataCollector(object):
 
 class DataSource(object):
     def __init__(self):
-        self._column_numbers = 0
-        self._number_of_columns = 1
+        self._
+        self._column_numbers = -1
+        self._number_of_columns = -1
+        self.sample_frequency = -1
         
     def getHeader(self):
         """ 
