@@ -3,6 +3,7 @@ import pypozyx
 from data_collector import DataSource, DataCollector
 from time import time_ns, sleep
 from datetime import datetime
+
 """
 This code is currently applicable for a computer (such as a raspberry pi)
 which has many pozyx devices connected to it through USB. This code will 
@@ -52,17 +53,27 @@ def findPozyxSerial():
         
     return pozyx_serials, pozyx_ids
 
-class PozyxIMU(DataSource):
-    
-    def __init__(self, pozyx):
+class PozyxImuSource(DataSource):
+    """
+    Create a Pozyx IMU source object which can read and return sensor from the
+    pozyx device. Certain readings can be excluded using, as an example,
+
+    source = PozyxImuSource(mag = False)
+    source = PozyxImuSource(mag = False, pres = False)
+    source = PozyxImuSource(gyro = False)
+
+    This class does NOT record range measurements. See PozyxRangeSource()
+    """
+    def __init__(self, pozyx, accel = True, gyro = True, mag = True,
+        pres = True, quat = False):
         super().__init__()
 
         # Settings
-        self.record_accel = True
-        self.record_gyro = True
-        self.record_mag = True
-        self.record_pres = True
-        self.record_quat = False
+        self.record_accel = accel
+        self.record_gyro = gyro
+        self.record_mag = mag
+        self.record_pres = pres
+        self.record_quat = quat
 
         # Internal variables
         self.pozyx = pozyx
@@ -160,8 +171,20 @@ class PozyxIMU(DataSource):
 
         return data_values
 
-class PozyxRange(DataSource):
-    def __init__(self, pozyx_serial, allow_self_ranging = True, exclude_ids = []):
+class PozyxRangeSource(DataSource):
+    """
+    Create a Pozyx Range source object to do UWB ranging with other pozyx 
+    devices. Will automatically detect other pozyx devices within UWB range.
+
+    Args:
+        pozyx: [PozyxSerial] object. See findPozyxSerial()
+
+        exclude_ids: [list] of device network ids to exclude from the ranging 
+            process.
+
+        allow_self_ranging: [bool] toggle to include the above exclude_ids
+    """
+    def __init__(self, pozyx_serial,  exclude_ids = [], allow_self_ranging = True):
         super().__init__()
         self.pozyx = pozyx_serial
         self.allow_self_ranging = allow_self_ranging
@@ -259,7 +282,7 @@ class PozyxRange(DataSource):
 
         return data_values
 
-class PozyxPosition(DataSource):
+class PozyxPositionSource(DataSource):
     def __init__(self,pozyx,anchors):
         super().__init__()
 
@@ -267,23 +290,75 @@ class PozyxPosition(DataSource):
         self.algorithm = pypozyx.PozyxConstants.POSITIONING_ALGORITHM_TRACKING    
         self.dimension = pypozyx.PozyxConstants.DIMENSION_3D
 
-        self.start_time = time_ns()
-        self.time_previous = time_ns()
-        self.current_time = self.time_previous
-
-        self.pozyxs = self.findPozyxSerial()
-        self.findNeighbors()
+        self.pozyx = pozyx
+        who_am_i = pypozyx.NetworkID()
+        status = self.pozyx.getNetworkId(who_am_i)
+        self.id = who_am_i.id
         self.setAnchorsManual(anchors)
         print('Initalization complete.')
-   
+
+    def getHeader(self):
+        """ 
+        Creates the header for the pozyx position source.
+        """
+        header_fields = list()
+        header_fields.append('Timestamp (ns)')
+        header_fields.append(str(hex(self.id)) + " Pos_x (mm)")
+        header_fields.append(str(hex(self.id)) + " Pos_y (mm)")
+        header_fields.append(str(hex(self.id)) + " Pos_z (mm)")
+        return header_fields
+
+    def setAnchorsManual(self,anchors):
+        """
+        Adds the manually measured anchors to the Pozyx's device list 
+        one for one.
+        """
+        
+        status = self.pozyx.clearDevices()
+        for anchor in anchors:
+            status &= self.pozyx.addDevice(anchor)
+        if len(anchors) > 4:
+            status &= self.pozyx.setSelectionOfAnchors(pypozyx.PozyxConstants.ANCHOR_SELECT_AUTO, len(anchors))
+
+        return status
+
+    def getData(self):
+        """
+        Performs the built-in positioning algorithm on the pozyx device and
+        returns the data.
+        """
+        position = pypozyx.Coordinates()
+        data_values = list()
+        
+        status = self.pozyx.doPositioning(position, self.dimension, self.algorithm)
+        data_values.append(str(time_ns()))
+        if status is pypozyx.POZYX_SUCCESS:
+            data_values.append(str(position.x))
+            data_values.append(str(position.y))
+            data_values.append(str(position.z))
+        else:
+            data_values += ['']*3
+
+        return data_values
+
 
 if __name__ == "__main__":
     pozyxs, ids = findPozyxSerial()
-    imu_source1 = PozyxIMU(pozyxs[0])
-    range_source1 = PozyxRange(pozyxs[0],exclude_ids=ids,allow_self_ranging=False)
-    imu_source2 = PozyxIMU(pozyxs[1])
-    range_source2 = PozyxRange(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
-    dc = DataCollector(imu_source1, range_source1, imu_source2, range_source2)
-    dc.record(10)      # To stream data to screen and save to a file
+    anchors = [pypozyx.DeviceCoordinates(0x6f4a, 1, pypozyx.Coordinates(3272, -2122, 1831)),
+               pypozyx.DeviceCoordinates(0x6f58, 1, pypozyx.Coordinates(-106, 2871, 1620)),
+               pypozyx.DeviceCoordinates(0x6f5f, 1, pypozyx.Coordinates(5758, 1901, 2120)),
+               pypozyx.DeviceCoordinates(0x6f60, 1, pypozyx.Coordinates(-3667, 176, 1820)),
+               pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(150, -2091, 472))]
+
+
+    #imu_source1 = PozyxImuSource(pozyxs[0])
+    #range_source1 = PozyxRangeSource(pozyxs[0],exclude_ids=ids,allow_self_ranging=False)
+    #imu_source2 = PozyxImuSource(pozyxs[1])
+    #range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
+    #dc = DataCollector(imu_source1, range_source1, imu_source2, range_source2)
+    position_source1 = PozyxPositionSource(pozyxs[0],anchors)
+    position_source2 = PozyxPositionSource(pozyxs[1],anchors)
+    dc = DataCollector(position_source1,position_source2)
+    dc.stream(10)      # To stream data to screen and save to a file
 
     

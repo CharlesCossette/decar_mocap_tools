@@ -62,10 +62,14 @@ class DataCollector(object):
 
         for data_source in data_source_list:
             source_values = data_source.getData()
-            data_values[data_source._column_numbers[0]:
-                        data_source._column_numbers[-1]] = source_values
-        if data_values[-1] is not '\n':
-            data_values += '\n'
+            if len(source_values) > 0:
+                data_values[data_source._column_numbers[0]:
+                            data_source._column_numbers[-1]] = source_values
+        if data_values == ['']*(self._column_counter - 1):
+            data_values = ''
+        else:
+            if data_values[-1] is not '\n':
+                data_values += '\n'
         return data_values
         
     def record(self,duration, name = None, filename = None):
@@ -95,7 +99,7 @@ class DataCollector(object):
         if response is not "y" and response is not "yes":
             quit()
 
-        header_fields = self.getAllHeaders(self.data_sources)
+        _ = self.getAllHeaders(self.data_sources)
         self._start_time = time_ns()
 
         while (time_ns() - self._start_time)*(10**-9) < duration:
