@@ -22,6 +22,7 @@ def findPozyxSerial():
     Returns:
         pozyxs: [list] of [pypozyx.PozyxSerial] containing one
             PozyxSerial() object per connected pozyx device.
+        pozyx_ids: [list] of IDs corresponding to the above PozyxSerial() list
     """
     # Detect Pozyx device on serial ports, get serial port address.
     pozyx_devices = list()
@@ -33,7 +34,8 @@ def findPozyxSerial():
         print("No Pozyx connected. Check your USB cable or your driver!")
         quit()
     else:
-        print("Pozyx device(s) detected on serial port(s): " + str(pozyx_devices)+ ".")
+        print("Pozyx device(s) detected on serial port(s): "\
+             + str(pozyx_devices)+ ".")
     
     # Initialize connection to serial port.
     pozyx_serials = list()
@@ -70,6 +72,9 @@ class PozyxIMU(DataSource):
         print('Initalization complete.')
 
     def getHeader(self):
+        """ 
+        Generates the header for the Pozyx IMU Source.
+        """
         header_fields = list()
         header_fields.append('Timestamp (ns)')
         self.number_data_columns = 1
@@ -107,7 +112,7 @@ class PozyxIMU(DataSource):
 
     def getData(self):
         """ 
-        Collects the data from the PozyxSerial device(s) as soon as a new data point is available."
+        Reads the Pozyx IMU/mag/barometer and returns the data as a list.
         """
 
         # Containers for storing the data 
@@ -204,6 +209,9 @@ class PozyxRange(DataSource):
         return device_list
         
     def getHeader(self):
+        """
+        Creates the header for the Pozyx Range source.
+        """
         header_fields = list()
         header_fields.append('Timestamp (ns)')
         for id in self.device_list.data:
@@ -214,8 +222,12 @@ class PozyxRange(DataSource):
         return header_fields
 
     def getData(self):
+        """
+        Performances ranging with one of its neighbors. A different neighbor is 
+        selected on each of these function calls. Returns range and RSS data.
+        """
 
-        data_values = list()
+        # Perform the rangin, exclude self-ranging if user has chosen this.
         device_range = pypozyx.DeviceRange()
         status_range = pypozyx.POZYX_FAILURE
         id = self.device_list.data[self._neighbor_to_range]
@@ -228,6 +240,8 @@ class PozyxRange(DataSource):
                 # if multiple devices are used.
                 status_range = self.pozyx.doRanging(id, device_range)
 
+        # Put data in list.
+        data_values = list()
         data_values.append(time_ns())
         data_values += [" "]*2*self._neighbor_to_range
         if status_range == pypozyx.POZYX_SUCCESS:
@@ -237,6 +251,7 @@ class PozyxRange(DataSource):
             data_values += [" "]*2
         data_values += [" "]*2*(len(self.device_list.data)- 1 - self._neighbor_to_range)
         
+        # New neighbor for next function call.
         if self._neighbor_to_range == (self._number_of_neighbors - 1):
             self._neighbor_to_range = 0
         else:
@@ -245,7 +260,22 @@ class PozyxRange(DataSource):
         return data_values
 
 class PozyxPosition(DataSource):
-    pass
+    def __init__(self,pozyx,anchors):
+        super().__init__()
+
+        # positioning algorithm to use, other is PozyxConstants.POSITIONING_ALGORITHM_UWB_ONLY
+        self.algorithm = pypozyx.PozyxConstants.POSITIONING_ALGORITHM_TRACKING    
+        self.dimension = pypozyx.PozyxConstants.DIMENSION_3D
+
+        self.start_time = time_ns()
+        self.time_previous = time_ns()
+        self.current_time = self.time_previous
+
+        self.pozyxs = self.findPozyxSerial()
+        self.findNeighbors()
+        self.setAnchorsManual(anchors)
+        print('Initalization complete.')
+   
 
 if __name__ == "__main__":
     pozyxs, ids = findPozyxSerial()
