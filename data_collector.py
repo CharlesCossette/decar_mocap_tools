@@ -64,6 +64,8 @@ class DataCollector(object):
             source_values = data_source.getData()
             data_values[data_source._column_numbers[0]:
                         data_source._column_numbers[-1]] = source_values
+        if data_values[-1] is not '\n':
+            data_values += '\n'
         return data_values
         
     def record(self,duration, name = None, filename = None):
