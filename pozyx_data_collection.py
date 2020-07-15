@@ -23,7 +23,7 @@ class PozyxDataCollector(object):
         self.record_mag = True
         self.record_pres = True
         self.record_quat = False
-        self.record_range = True
+        self.record_range = False
         self.allow_self_ranging = False
 
         # Internal variables
@@ -340,7 +340,7 @@ class PozyxDataCollector(object):
 
 if __name__ == "__main__":
     dc = PozyxDataCollector()
-    dc.stream(30)       # To stream data to screen without saving to file
-  #  dc.record(10)      # To stream data to screen and save to a file
+  #  dc.stream(30)       # To stream data to screen without saving to file
+    dc.record(10)      # To stream data to screen and save to a file
 
     
