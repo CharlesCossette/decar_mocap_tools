@@ -20,28 +20,13 @@ function C_sm = calibrateFrames(syncedData, phi, TOL)
 
     %% LS Optimization on SO(3)
     C_sm = ROTVEC_TO_DCM(phi);
+    f = @(C_sm) computeErrorVector(C_sm,...
+                                   syncedData.accMocap, syncedData.omegaMocap,...
+                                   syncedData.accIMU,   syncedData.omegaIMU);
     while norm(delta) > TOL
-        e = zeros(3*numMeas, 1); % error vector
-        A = zeros(3*numMeas, 3); % (\partial C_sm) / (\partial \phi)
-        for lv1=1:1:numAcc
-            i = 3*(lv1-1)+1;
-            j = 3*lv1;
-            % compute error vector for acc meas
-            e(i:j,:) = C_sm * syncedData.accMocap(:,lv1) - syncedData.accIMU(:,lv1);
-
-            % compute A matrix for acc meas
-            A(i:j,:) = -CrossOperator(C_sm * syncedData.accMocap(:,lv1));% * C_sm;
-        end
-        for lv1=1:1:numGyr
-            i = numAcc + 3*(lv1-1)+1;
-            j = numAcc + 3*lv1;
-            % compute error vector for gyr meas
-            e(i:j,:) = C_sm * syncedData.omegaMocap(:,lv1) - syncedData.omegaIMU(:,lv1);
-
-            % compute A matrix for gyr meas
-            A(i:j,:) = -CrossOperator(C_sm * syncedData.omegaMocap(:,lv1));% * C_sm;
-        end
-
+        e = f(C_sm);
+        A = complexStepJacobianLie(f,C_sm,3,@CrossOperator);
+        
         % update step
         delta = -(A'*A) \ A' * e;
         C_sm = ROTVEC_TO_DCM(delta)*C_sm;
@@ -66,4 +51,21 @@ function C_sm = calibrateFrames(syncedData, phi, TOL)
     hold on
     plot(syncedData.omegaIMU(3,:));
     
+end
+function output = computeErrorVector(C_sm, accMocap, omegaMocap, accIMU, omegaIMU)
+    numAcc  = length(accIMU);   % number of accel meas
+    numGyr  = length(omegaIMU); % number of gyr meas
+    numMeas = numAcc + numGyr;             % total number of accel 
+                                           % and gyro meas.)
+    output = zeros(3*numMeas, 1); % error vector
+    for lv1=1:1:numAcc
+        i = 3*(lv1-1)+1;
+        j = 3*lv1;
+        output(i:j,:) = C_sm * accMocap(:,lv1) - accIMU(:,lv1);
+    end
+    for lv1=1:1:numGyr
+        i = numAcc + 3*(lv1-1)+1;
+        j = numAcc + 3*lv1;
+        output(i:j,:) = C_sm * omegaMocap(:,lv1) - omegaIMU(:,lv1);
+    end
 end

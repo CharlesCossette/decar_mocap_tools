@@ -1,4 +1,4 @@
-function bSplineStruct = mocap_fitSpline(data, gapSize, visualization)
+function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
 % Fits a spline to all rigid bodies in 'data'.
 
     if nargin < 1
@@ -9,7 +9,7 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualization)
                       % fitting to be 1 sample per 10 recorded.
     end
     if nargin < 3
-        visualization = 0; % visualizations turned off by default
+        visualBool = false; % visualizations turned off by default
     end
 
     % initialize struct to store the spline parameters of each rigid body.
@@ -52,7 +52,7 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualization)
             
             % Evaluating the performance of the fit, visually
             % user-defined trigger
-            if visualization == 1
+            if visualBool
                 figure
                 p=3;
                 subplot(3,1,1)
