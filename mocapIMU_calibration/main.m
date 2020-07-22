@@ -3,7 +3,7 @@
 clear all; close all; clc;
 
 addpath('utils/')
-addpath('data/')
+addpath('calibrationData/')
 
 % Extract Mocap data
 dataMocap = mocap_csv2struct('Sensor_Frame_Calibration_Take_002.csv')
