@@ -111,6 +111,6 @@ class SenseHatSource(DataSource):
         return data_values
 
 if __name__ == "__main__":
-    shs = SenseHatSource()
+    shs = SenseHatSource(gyro = False, mag = False, pres = False, temp = False)
     dc = DataCollector(shs)
-    dc.stream(10,name = 'imu')
+    dc.stream(20,name = 'imu')

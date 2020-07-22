@@ -86,8 +86,9 @@ class DataCollector(object):
             data_string = ",".join(map(str,data_values))
 
             # Write to file
-            print(data_string[:-1])
-            file.write(data_string)
+            if data_string is not '':
+                print(data_string[:-1])
+                file.write(data_string)
                
         # Close file
         file.flush()
@@ -108,7 +109,8 @@ class DataCollector(object):
             data_string = ",".join(map(str,data_values))
 
             # Print to screen
-            print(data_string[:-1])
+            if data_string is not '':
+                print(data_string[:-1])
                
 
 
@@ -116,7 +118,6 @@ class DataSource(object):
     def __init__(self):
         self._column_numbers = -1
         self._number_of_columns = -1
-        self.sample_frequency = -1
         
     def getHeader(self):
         """ 
