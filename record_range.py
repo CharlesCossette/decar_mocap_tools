@@ -10,4 +10,4 @@ for pozyx in pozyxs:
                             allow_self_ranging=False))
 
 dc = DataCollector(*pozyx_sources)
-dc.record(300, name = 'position')
+dc.record(300, name = 'range)

@@ -14,4 +14,4 @@ for pozyx in pozyxs:
     pozyx_sources.append(PozyxPositionSource(pozyx,anchors))
 
 dc = DataCollector(*pozyx_sources)
-dc.record(300, name = 'range')
+dc.record(300, name = 'position')
