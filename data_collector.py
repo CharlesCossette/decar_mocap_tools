@@ -93,7 +93,7 @@ class DataCollector(object):
         file.flush()
         file.close()
     
-    def stream(self,duration, *args):
+    def stream(self,duration, **kwargs):
 
         response = input("Ready to stream data? (y/n)")
         if response is not "y" and response is not "yes":

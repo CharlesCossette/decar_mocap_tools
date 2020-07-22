@@ -172,6 +172,7 @@ class PozyxImuSource(DataSource):
         return data_values
 
 class PozyxRangeSource(DataSource):
+    # TODO: Get more decimal places from the RSS measurement...
     """
     Create a Pozyx Range source object to do UWB ranging with other pozyx 
     devices. Will automatically detect other pozyx devices within UWB range.
@@ -283,6 +284,7 @@ class PozyxRangeSource(DataSource):
         return data_values
 
 class PozyxPositionSource(DataSource):
+
     def __init__(self,pozyx,anchors):
         super().__init__()
 
@@ -344,21 +346,25 @@ class PozyxPositionSource(DataSource):
 
 if __name__ == "__main__":
     pozyxs, ids = findPozyxSerial()
-    anchors = [pypozyx.DeviceCoordinates(0x6f4a, 1, pypozyx.Coordinates(3272, -2122, 1831)),
-               pypozyx.DeviceCoordinates(0x6f58, 1, pypozyx.Coordinates(-106, 2871, 1620)),
-               pypozyx.DeviceCoordinates(0x6f5f, 1, pypozyx.Coordinates(5758, 1901, 2120)),
-               pypozyx.DeviceCoordinates(0x6f60, 1, pypozyx.Coordinates(-3667, 176, 1820)),
-               pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(150, -2091, 472))]
+    anchors = [pypozyx.DeviceCoordinates(0x6f4a, 1, pypozyx.Coordinates(2594, -2110, 1845)),
+               pypozyx.DeviceCoordinates(0x6f58, 1, pypozyx.Coordinates(-75, 2116, 149)),
+               pypozyx.DeviceCoordinates(0x6f5f, 1, pypozyx.Coordinates(4731, 2149, 2120)),
+               pypozyx.DeviceCoordinates(0x6f60, 1, pypozyx.Coordinates(-4232, 460, 2400)),
+               pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(-505, -2080, 474))]
 
+    """
+    imu_source1 = PozyxImuSource(pozyxs[0],gyro = False,mag = False, pres = False)
+    range_source1 = PozyxRangeSource(pozyxs[0],exclude_ids=ids,allow_self_ranging=False)
+    imu_source2 = PozyxImuSource(pozyxs[1])
+    range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
+    dc = DataCollector(imu_source1, range_source1,imu_source2, range_source2)
+    """
 
-    #imu_source1 = PozyxImuSource(pozyxs[0])
-    #range_source1 = PozyxRangeSource(pozyxs[0],exclude_ids=ids,allow_self_ranging=False)
-    #imu_source2 = PozyxImuSource(pozyxs[1])
-    #range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
-    #dc = DataCollector(imu_source1, range_source1, imu_source2, range_source2)
     position_source1 = PozyxPositionSource(pozyxs[0],anchors)
     position_source2 = PozyxPositionSource(pozyxs[1],anchors)
     dc = DataCollector(position_source1,position_source2)
-    dc.stream(10)      # To stream data to screen and save to a file
+    
+    dc.record(250,name = "positions")      # To stream data to screen and save to a file
 
+    
     
