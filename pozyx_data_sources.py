@@ -66,7 +66,7 @@ class PozyxImuSource(DataSource):
     This class does NOT record range measurements. See PozyxRangeSource()
     """
     def __init__(self, pozyx, accel = True, gyro = True, mag = True,
-                 pres = True, quat = False, remote_id = None):
+                 pres = True, euler = False, quat = False, remote_id = None):
         super().__init__()
 
         # Settings
@@ -74,6 +74,7 @@ class PozyxImuSource(DataSource):
         self.record_gyro = gyro
         self.record_mag = mag
         self.record_pres = pres
+        self.record_euler = euler
         self.record_quat = quat
         self.remote_id = remote_id
 
@@ -95,36 +96,36 @@ class PozyxImuSource(DataSource):
         """
         header_fields = list()
         header_fields.append('Timestamp (ns)')
-        self.number_data_columns = 1
+
         # Generate the header string
         if self.record_accel:
             header_fields.append(str(hex(self.id)) + " Accel_x (mg)")
             header_fields.append(str(hex(self.id)) + " Accel_y (mg)")
             header_fields.append(str(hex(self.id)) + " Accel_z (mg)")
-            self.number_data_columns += 3
 
         if self.record_gyro:
             header_fields.append(str(hex(self.id)) + " Gyro_x (deg/s)")
             header_fields.append(str(hex(self.id)) + " Gyro_y (deg/s)")
             header_fields.append(str(hex(self.id)) + " Gyro_z (deg/s)")
-            self.number_data_columns += 3
 
         if self.record_mag:
             header_fields.append(str(hex(self.id)) + " Mag_x (uT)")
             header_fields.append(str(hex(self.id)) + " Mag_y (uT)")
             header_fields.append(str(hex(self.id)) + " Mag_z (uT)")
-            self.number_data_columns += 3
+
+        if self.record_euler:
+            header_fields.append(str(hex(self.id)) + " Roll (deg)")
+            header_fields.append(str(hex(self.id)) + " Pitch (deg)")
+            header_fields.append(str(hex(self.id)) + " Yaw (deg)")
             
         if self.record_quat:
             header_fields.append(str(hex(self.id)) + " Quat_w")
             header_fields.append(str(hex(self.id)) + " Quat_x")
             header_fields.append(str(hex(self.id)) + " Quat_y")
             header_fields.append(str(hex(self.id)) + " Quat_z")
-            self.number_data_columns += 4
 
         if self.record_pres:
             header_fields.append(str(hex(self.id)) + " Pressure (Pa)")
-            self.number_data_columns += 1
 
         return header_fields
 
@@ -134,11 +135,6 @@ class PozyxImuSource(DataSource):
         """
 
         # Containers for storing the data 
-        accel_data = pypozyx.Acceleration()
-        gyro_data = pypozyx.AngularVelocity()
-        mag_data = pypozyx.Magnetic()
-        quat_data = pypozyx.Quaternion()
-        pres_data = pypozyx.Pressure()
         data_values = list()
 
         # Hold until a new IMU measurement is available.
@@ -147,24 +143,35 @@ class PozyxImuSource(DataSource):
         # Create datastring
         data_values.append(time_ns())
         if self.record_accel:
+            accel_data = pypozyx.Acceleration()
             self.pozyx.getAcceleration_mg(accel_data, remote_id = self.remote_id)
             data_values.append(accel_data.x)
             data_values.append(accel_data.y)
             data_values.append(accel_data.z)
 
         if self.record_gyro:
+            gyro_data = pypozyx.AngularVelocity()
             self.pozyx.getAngularVelocity_dps(gyro_data, remote_id = self.remote_id)
             data_values.append(gyro_data.x)
             data_values.append(gyro_data.y)
             data_values.append(gyro_data.z)
 
         if self.record_mag:
+            mag_data = pypozyx.Magnetic()
             self.pozyx.getMagnetic_uT(mag_data, remote_id = self.remote_id)
             data_values.append(mag_data.x)
             data_values.append(mag_data.y)
             data_values.append(mag_data.z)
 
+        if self.record_euler:
+            euler_data = pypozyx.EulerAngles()
+            self.pozyx.getEulerAngles_deg(euler_data, remote_id = self.remote_id)
+            data_values.append(euler_data.roll)
+            data_values.append(euler_data.pitch)
+            data_values.append(euler_data.heading)
+
         if self.record_quat:
+            quat_data = pypozyx.Quaternion()
             self.pozyx.getQuaternion(quat_data, remote_id = self.remote_id)
             data_values.append(quat_data.w)
             data_values.append(quat_data.x)
@@ -172,6 +179,7 @@ class PozyxImuSource(DataSource):
             data_values.append(quat_data.z)
 
         if self.record_pres:
+            pres_data = pypozyx.Pressure()
             self.pozyx.getPressure_Pa(pres_data, remote_id = self.remote_id)
             data_values.append(pres_data.value)
 
@@ -367,19 +375,19 @@ if __name__ == "__main__":
                pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(-505, -2080, 474))]
 
     
-    #imu_source1 = PozyxImuSource(pozyxs[0],gyro = False,mag = False, pres = False, remote_id = 0x6a5d)
+    imu_source1 = PozyxImuSource(pozyxs[0],gyro = False,mag = False, pres = False, accel = False, euler = True)
     range_source1 = PozyxRangeSource(pozyxs[0])
     #imu_source2 = PozyxImuSource(pozyxs[1])
     #range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
-    dc = DataCollector(range_source1)
+    dc = DataCollector(imu_source1, range_source1)
     """
 
-    position_source1 = PozyxPositionSource(pozyxs[0],anchors)
+    position_source1 = PozyxPositionsSource(pozyxs[0],anchors)
     position_source2 = PozyxPositionSource(pozyxs[1],anchors)
     dc = DataCollector(position_source1,position_source2)
     """
 
-    dc.stream(20,name = "positions")      # To stream data to screen and save to a file
+    dc.record(240,name = "positions")      # To stream data to screen and save to a file
 
     
     
