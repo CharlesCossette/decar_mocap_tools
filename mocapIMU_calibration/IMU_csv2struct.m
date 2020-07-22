@@ -2,7 +2,7 @@ function  S = IMU_csv2struct(filename)
 % Extracts data from one IMU.
 
     opts = detectImportOptions(filename);
-    header_row_range = [num2str(1),':',num2str(opts.DataLine(1))+1];
+    header_row_range = [num2str(1),':',num2str(opts.DataLine(1)+1)];
 
     headers = readcell(filename,'Range',header_row_range);
     data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1));

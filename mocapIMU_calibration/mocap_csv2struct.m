@@ -1,7 +1,7 @@
 function  S = mocap_csv2struct(filename)
 
 opts = detectImportOptions(filename);
-header_row_range = [num2str(1),':',num2str(opts.DataLine(1))+2];
+header_row_range = [num2str(1),':',num2str(opts.DataLine(1)+2)];
 
 headers = readcell(filename,'Range',header_row_range);
 data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1));
