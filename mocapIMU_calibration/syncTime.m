@@ -3,6 +3,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
 % Currently outputing only the IMU accelerometer and the gyroscope.
+% Requires the bspline code from decar_utils.
 % TODO: 1) Preallocate memory for computational efficiency
 %       2) add mag, baro..
 %       3) add user-defined bias corrections (PRIORITY!)
@@ -20,17 +21,15 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     %% Generating Mocap accelerometer data using fitted spline
     numKnots = length(bSplineStruct.knots);
     mocap_acc = zeros(3, numKnots);
-    parfor lv1=1:numKnots
-        t = knots(lv1);
-        
+    temp     = bspline(knots,knots,P,3);
+    tempDerv = bsplineDerv(knots,knots,P,3,2);
+    for lv1=1:numKnots     
         % extract attitude
-        temp   = bspline(t,knots,P,3);
-        phi_ba = temp(4:6);
+        phi_ba = temp(4:6,lv1);
         C_ba   = ROTVEC_TO_DCM(phi_ba);
         
         % extract acceleration + gravity
-        temp = bsplineDerv(t,knots,P,3,2);
-        mocap_acc(:,lv1) = temp(1:3) + C_ba*[0.21;-0.6728;9.4]; %% TODO: add user-defined bias corrections
+        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*[-0.24;-0.21;9.78]; %% TODO: add user-defined bias corrections
     end
     
     %% Finding the timestep in which a spike occurs in both datasets
@@ -47,12 +46,12 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
                                               % the Mocap ground truth data
                                               
     %% Generating the synced data
+    index_synced       = [];
     t_synced           = [];
-    IMU_acc_synced     = [];
-    IMU_gyr_synced     = [];
-    Mocap_acc_synced   = [];
-    Mocap_omega_synced = [];
-    parfor lv1=1:length(dataIMU.t)
+    
+    % Find the timesteps in the Mocap time reference and its corresponding
+    % index in the IMU data
+    for lv1=1:length(dataIMU.t)
         tDiff = dataIMU.t(lv1) - tSyncIMU; % the time difference between the 
                                        % the current timestamp and the 
                                        % timestap at which the peak occurred.
@@ -60,24 +59,34 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
         if t < 0 || t > knots(length(knots))
             continue
         end
-
-        % IMU Data
-        t_synced = [t_synced, t];
-        IMU_acc_synced = [IMU_acc_synced, dataIMU.accel(:,lv1)];
-        IMU_gyr_synced = [IMU_gyr_synced, dataIMU.gyro(:,lv1)];
+        
+        index_synced = [index_synced; lv1];
+        t_synced = [t_synced; t];
+    end
+    
+    % Extract information from the b-spline fit at the required timesteps.
+    temp      = bspline(t_synced,knots,P,3);
+    tempDerv  = bsplineDerv(t_synced,knots,P,3,1);
+    tempDerv2 = bsplineDerv(t_synced,knots,P,3,2);
+    
+    IMU_acc_synced     = zeros(3,length(t_synced));
+    IMU_gyr_synced     = zeros(3,length(t_synced));
+    Mocap_acc_synced   = zeros(3,length(t_synced));
+    Mocap_omega_synced = zeros(3,length(t_synced));
+    for lv1=1:length(t_synced)
+        i = index_synced(lv1);
+        IMU_acc_synced(:,lv1) = dataIMU.accel(:,i);
+        IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,i);
 
         % Mocap omega data
-        temp       = bspline(t,knots,P,3);
-        phi_ba     = temp(4:6);
-        temp       = bsplineDerv(t,knots,P,3,1);
-        phi_ba_dot = temp(4:6);
-        temp = PhiDotToOmega(phi_ba, phi_ba_dot);
-        Mocap_omega_synced = [Mocap_omega_synced, temp];
+        phi_ba     = temp(4:6,lv1);
+        phi_ba_dot = tempDerv(4:6,lv1);
+        omega = PhiDotToOmega(phi_ba, phi_ba_dot);
+        Mocap_omega_synced(:,lv1) = omega;
 
         % Mocap acceleration data
-        temp = bsplineDerv(t,knots,P,3,2);
         C_ba = ROTVEC_TO_DCM(phi_ba);
-        Mocap_acc_synced = [Mocap_acc_synced, temp(1:3)+C_ba*[0.21;-0.6728;9.4]];
+        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1)+C_ba*[-0.24;-0.21;9.78];
     end
     
     

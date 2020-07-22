@@ -1,11 +1,12 @@
 function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
 % Fits a spline to all rigid bodies in 'data'.
+% Requires the bspline code from decar_utils.
 
     if nargin < 1
         error('Data required');
     end
     if nargin < 2
-        gapSize = 10; % set the default sampling frequency for spline 
+        gapSize = 5; % set the default sampling frequency for spline 
                       % fitting to be 1 sample per 10 recorded.
     end
     if nargin < 3
@@ -44,9 +45,9 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
                         
             % Generate the defining properties of the B-spline.
             % Assume initial and final velocity, angular velocity are 0
-            [~, knots, P] = bsplineInterp(waypoints,t,zeros(6,1),zeros(6,1));
+            [knots, P, ~] = bsplineInterp(waypoints,t,zeros(6,1),zeros(6,1));
             
-            % Saving the compute B-spline fit.
+            % Saving the computed B-spline fit.
             bSplineStruct.(bodyName{1}).knots = knots;
             bSplineStruct.(bodyName{1}).P = P;
             
