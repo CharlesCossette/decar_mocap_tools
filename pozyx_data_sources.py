@@ -58,14 +58,15 @@ class PozyxImuSource(DataSource):
     Create a Pozyx IMU source object which can read and return sensor from the
     pozyx device. Certain readings can be excluded using, as an example,
 
-    source = PozyxImuSource(mag = False)
-    source = PozyxImuSource(mag = False, pres = False)
-    source = PozyxImuSource(gyro = False)
+    >>> source = PozyxImuSource(pozyx, mag = False)
+    >>> source = PozyxImuSource(pozyx, mag = False, pres = False)
+    >>> source = PozyxImuSource(pozyx, gyro = False)
+    >>> source = PozyxImuSource(pozyx, remote_id = 0x6a25)
 
     This class does NOT record range measurements. See PozyxRangeSource()
     """
     def __init__(self, pozyx, accel = True, gyro = True, mag = True,
-        pres = True, quat = False):
+                 pres = True, quat = False, remote_id = None):
         super().__init__()
 
         # Settings
@@ -74,12 +75,18 @@ class PozyxImuSource(DataSource):
         self.record_mag = mag
         self.record_pres = pres
         self.record_quat = quat
+        self.remote_id = remote_id
 
         # Internal variables
         self.pozyx = pozyx
         who_am_i = pypozyx.NetworkID()
-        status = self.pozyx.getNetworkId(who_am_i)
-        self.id = who_am_i.id
+        self.pozyx.getNetworkId(who_am_i)
+        if self.remote_id is not None:
+            self.id = remote_id
+            print('Accessing ' + str(hex(self.id)) + ' remotely from ' \
+                  + str(hex(who_am_i.id) + '.'))
+        else:
+            self.id = who_am_i.id
         print('Initalization complete.')
 
     def getHeader(self):
@@ -134,39 +141,38 @@ class PozyxImuSource(DataSource):
         pres_data = pypozyx.Pressure()
         data_values = list()
 
-        
-        interrupt_register = pypozyx.SingleRegister()
-        self.pozyx.waitForFlagSafe(pypozyx.PozyxBitmasks.INT_MASK_IMU, 0.1, interrupt_register)
+        # Hold until a new IMU measurement is available.
+        self.pozyx.waitForFlagSafe(pypozyx.PozyxBitmasks.INT_MASK_IMU, 0.1)
 
         # Create datastring
         data_values.append(time_ns())
         if self.record_accel:
-            status = self.pozyx.getAcceleration_mg(accel_data)
+            self.pozyx.getAcceleration_mg(accel_data, remote_id = self.remote_id)
             data_values.append(accel_data.x)
             data_values.append(accel_data.y)
             data_values.append(accel_data.z)
 
         if self.record_gyro:
-            status = self.pozyx.getAngularVelocity_dps(gyro_data)
+            self.pozyx.getAngularVelocity_dps(gyro_data, remote_id = self.remote_id)
             data_values.append(gyro_data.x)
             data_values.append(gyro_data.y)
             data_values.append(gyro_data.z)
 
         if self.record_mag:
-            status = self.pozyx.getMagnetic_uT(mag_data)
+            self.pozyx.getMagnetic_uT(mag_data, remote_id = self.remote_id)
             data_values.append(mag_data.x)
             data_values.append(mag_data.y)
             data_values.append(mag_data.z)
 
         if self.record_quat:
-            status = self.pozyx.getQuaternion(quat_data)
+            self.pozyx.getQuaternion(quat_data, remote_id = self.remote_id)
             data_values.append(quat_data.w)
             data_values.append(quat_data.x)
             data_values.append(quat_data.y)
             data_values.append(quat_data.z)
 
         if self.record_pres:
-            status = self.pozyx.getPressure_Pa(pres_data)
+            self.pozyx.getPressure_Pa(pres_data, remote_id = self.remote_id)
             data_values.append(pres_data.value)
 
         return data_values
@@ -185,15 +191,22 @@ class PozyxRangeSource(DataSource):
 
         allow_self_ranging: [bool] toggle to include the above exclude_ids
     """
-    def __init__(self, pozyx_serial,  exclude_ids = [], allow_self_ranging = True):
+    def __init__(self, pozyx_serial,  exclude_ids = [], 
+                 allow_self_ranging = True, remote_id = None):
         super().__init__()
         self.pozyx = pozyx_serial
         self.allow_self_ranging = allow_self_ranging
         self.exclude_ids = exclude_ids
+        self.remote_id = remote_id
 
         who_am_i = pypozyx.NetworkID()
-        status = self.pozyx.getNetworkId(who_am_i)
-        self.id = who_am_i.id
+        self.pozyx.getNetworkId(who_am_i)
+        if self.remote_id is not None:
+            self.id = remote_id
+            print('Accessing ' + str(hex(self.id)) + ' remotely from ' \
+                  + str(hex(who_am_i.id) + '.'))
+        else:
+            self.id = who_am_i.id
 
         self.device_list = self.findNeighbors()
         self._neighbor_to_range = 0
@@ -210,18 +223,18 @@ class PozyxRangeSource(DataSource):
         
         # Get ID of current pozyx device
         who_am_i = pypozyx.NetworkID()
-        status = self.pozyx.getNetworkId(who_am_i)
+        self.pozyx.getNetworkId(who_am_i)
 
         # Discover other pozyx devices
-        status = self.pozyx.clearDevices()
-        status = self.pozyx.doDiscoveryAll()
+        self.pozyx.clearDevices(remote_id = self.remote_id)
+        self.pozyx.doDiscoveryAll(remote_id = self.remote_id)
         device_list_size = pypozyx.SingleRegister()
-        status = self.pozyx.getDeviceListSize(device_list_size)
+        self.pozyx.getDeviceListSize(device_list_size, remote_id = self.remote_id)
         device_list = pypozyx.DeviceList(list_size = device_list_size.value)
-        status = self.pozyx.getDeviceIds(device_list)
+        self.pozyx.getDeviceIds(device_list, remote_id = self.remote_id)
 
         # Print device list 
-        id_string = "Device " + str(hex(who_am_i.id))+" has discovered the following other devices: "
+        id_string = "Device " + str(hex(self.id))+" has discovered the following other devices: "
         for id in device_list.data:
             id_string += str(hex(id)) + ", "
             
@@ -247,7 +260,7 @@ class PozyxRangeSource(DataSource):
 
     def getData(self):
         """
-        Performances ranging with one of its neighbors. A different neighbor is 
+        Performs ranging with one of its neighbors. A different neighbor is 
         selected on each of these function calls. Returns range and RSS data.
         """
 
@@ -258,11 +271,12 @@ class PozyxRangeSource(DataSource):
         if id in self.exclude_ids and not self.allow_self_ranging:
             pass
         else:
-            status_range = self.pozyx.doRanging(id, device_range)
-            if status_range == pypozyx.POZYX_FAILURE:
+            status_range = self.pozyx.doRanging(id, device_range,
+                                                remote_id = self.remote_id)
+            if status_range != pypozyx.POZYX_SUCCESS:
                 # Try ranging a second time, sometimes this occurs 
                 # if multiple devices are used.
-                status_range = self.pozyx.doRanging(id, device_range)
+                status_range = self.pozyx.doRanging(id, device_range, remote_id = self.remote_id)
 
         # Put data in list.
         data_values = list()
@@ -294,7 +308,7 @@ class PozyxPositionSource(DataSource):
 
         self.pozyx = pozyx
         who_am_i = pypozyx.NetworkID()
-        status = self.pozyx.getNetworkId(who_am_i)
+        self.pozyx.getNetworkId(who_am_i)
         self.id = who_am_i.id
         self.setAnchorsManual(anchors)
         print('Initalization complete.')
@@ -316,7 +330,7 @@ class PozyxPositionSource(DataSource):
         one for one.
         """
         
-        status = self.pozyx.clearDevices()
+        self.pozyx.clearDevices()
         for anchor in anchors:
             status &= self.pozyx.addDevice(anchor)
         if len(anchors) > 4:
@@ -352,19 +366,20 @@ if __name__ == "__main__":
                pypozyx.DeviceCoordinates(0x6f60, 1, pypozyx.Coordinates(-4232, 460, 2400)),
                pypozyx.DeviceCoordinates(0x6f61, 1, pypozyx.Coordinates(-505, -2080, 474))]
 
-    """
-    imu_source1 = PozyxImuSource(pozyxs[0],gyro = False,mag = False, pres = False)
-    range_source1 = PozyxRangeSource(pozyxs[0],exclude_ids=ids,allow_self_ranging=False)
-    imu_source2 = PozyxImuSource(pozyxs[1])
-    range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
-    dc = DataCollector(imu_source1, range_source1,imu_source2, range_source2)
+    
+    #imu_source1 = PozyxImuSource(pozyxs[0],gyro = False,mag = False, pres = False, remote_id = 0x6a5d)
+    range_source1 = PozyxRangeSource(pozyxs[0])
+    #imu_source2 = PozyxImuSource(pozyxs[1])
+    #range_source2 = PozyxRangeSource(pozyxs[1],exclude_ids=ids,allow_self_ranging=False)
+    dc = DataCollector(range_source1)
     """
 
     position_source1 = PozyxPositionSource(pozyxs[0],anchors)
     position_source2 = PozyxPositionSource(pozyxs[1],anchors)
     dc = DataCollector(position_source1,position_source2)
-    
-    dc.record(250,name = "positions")      # To stream data to screen and save to a file
+    """
+
+    dc.stream(20,name = "positions")      # To stream data to screen and save to a file
 
     
     
