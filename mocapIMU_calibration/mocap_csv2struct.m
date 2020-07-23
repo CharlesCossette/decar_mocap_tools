@@ -36,7 +36,7 @@ opts = detectImportOptions(filename);
 header_row_range = [num2str(1),':',num2str(opts.DataLine(1)+2)];
 
 % Store headers into cell array, data into matrix
-headers = readcell(filename,'Range',header_row_range);
+headers = readcell(filename,'Range',header_row_range); % MATLAB 2019a +
 data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1));
 
 %% STEP 1 - Remove any columns with barely any data

@@ -5,9 +5,9 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
     if nargin < 1
         error('Data required');
     end
-    if nargin < 2
+    if nargin < 2 || isempty(gapSize)
         gapSize = 5; % set the default sampling frequency for spline 
-                      % fitting to be 1 sample per 10 recorded.
+                     % fitting to be 1 sample per 10 recorded.
     end
     if nargin < 3
         visualBool = false; % visualizations turned off by default
@@ -56,33 +56,48 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
             if visualBool
                 figure
                 p=3;
+                spline_points = bspline(t,knots,P,p);
+                
                 subplot(3,1,1)
-                plot(t, waypoints(1,:))
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(1,:))
                 hold on
-                grid
+                plot(t,spline_points(1,:))
+                hold off
+                grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
                 ylabel('$x$ [m]', 'Interpreter', 'Latex')
+                legend('Raw Data', 'Bspline fit')
+                title('Position')
+                
                 subplot(3,1,2)
                 plot(t, waypoints(2,:))
                 hold on
-                grid
+                plot(t,spline_points(2,:))
+                hold off
+                grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
-                ylabel('$y$ [m]', 'Interpreter', 'Latex')
+                ylabel('$x$ [m]', 'Interpreter', 'Latex')
+                
                 subplot(3,1,3)
                 plot(t, waypoints(3,:))
                 hold on
-                grid
+                plot(t,spline_points(3,:))
+                hold off
+                grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
                 ylabel('$z$ [m]', 'Interpreter', 'Latex')
-                for t = 1:1:t(end)
-                    temp = bspline(t,knots,P,p);
-                    subplot(3,1,1)
-                    scatter(t,temp(1))
-                    subplot(3,1,2)
-                    scatter(t,temp(2))
-                    subplot(3,1,3)
-                    scatter(t,temp(3))
-                end
+                
+                figure
+                plot3(data.(bodyName{1}).r_zw_a(1,:),data.(bodyName{1}).r_zw_a(2,:),data.(bodyName{1}).r_zw_a(3,:))
+                hold on
+                plot3(spline_points(1,:),spline_points(2,:),spline_points(3,:))
+                hold off
+                grid on
+                axis vis3d
+                xlabel('$x$ [m]', 'Interpreter', 'Latex')
+                ylabel('$y$ [m]', 'Interpreter', 'Latex')
+                zlabel('$z$ [m]', 'Interpreter', 'Latex')
+                legend('Raw Data','Bspline fit')
             end
         end
     end

@@ -1,15 +1,15 @@
 % An example of how to use the Mocap tools.
 
-clear all; close all; clc;
+clear; close all; clc;
 
-addpath('utils/')
-addpath('calibrationData/')
+%addpath('utils/')
+%addpath('calibrationData/')
 
 % Extract Mocap data
 dataMocap = mocap_csv2struct('Sensor_Frame_Calibration_Take_002.csv')
 
 % Fit a b-spline to the Mocap data
-spline = mocap_fitSpline(dataMocap)
+spline = mocap_fitSpline(dataMocap,[],true)
 
 % Extract the IMU data
 dataIMU = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
