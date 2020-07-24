@@ -81,11 +81,13 @@ class SenseHatSource(DataSource):
             data_values.append(timestamp)
 
             if self.record_accel:
-                data_values.append(accel_data[0]) 
+                # Negate x-axis for right-handed frame
+                data_values.append(-accel_data[0]) 
                 data_values.append(accel_data[1]) 
                 data_values.append(accel_data[2]) 
 
             if self.record_gyro:
+                # Negate x-axis for right-handed frame
                 data_values.append(gyro_data[0]) 
                 data_values.append(gyro_data[1]) 
                 data_values.append(gyro_data[2]) 
@@ -109,6 +111,6 @@ class SenseHatSource(DataSource):
         return data_values
 
 if __name__ == "__main__":
-    shs = SenseHatSource()
+    shs = SenseHatSource(gyro = False, mag = False, pres = False, temp = False)
     dc = DataCollector(shs)
-    dc.stream(10)
+    dc.stream(20,name = 'imu')
