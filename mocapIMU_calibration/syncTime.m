@@ -80,6 +80,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
 
         % Mocap omega data
         q_ba     = temp(4:7,lv1);
+        q_ba = q_ba./norm(q_ba);
         q_ba_dot = tempDerv(4:7,lv1);
         omega = quatrate2omega(q_ba, q_ba_dot);
         Mocap_omega_synced(:,lv1) = omega;
@@ -98,7 +99,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     hold off
     grid on
     xlabel('$x$ [s]','interpreter','latex')
-    ylabel('$a^{zw/a/a}_b$ [m/s^2]','interpreter','latex')
+    ylabel('$a^{zw / a /a}_b$ [m/s^2]','interpreter','latex')
     legend('IMU Data','Mocap Data')
     
     figure
@@ -110,6 +111,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     ylabel('$\omega^{ba}_b$','interpreter','latex')
     grid on
     legend('IMU Data','Mocap Data')
+    title('Angular Velocity')
     %% Save the synchronized data
     syncedData.t          = t_synced;
     syncedData.accIMU     = IMU_acc_synced;
@@ -117,26 +119,6 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     syncedData.accMocap   = Mocap_acc_synced;
     syncedData.omegaMocap = Mocap_omega_synced;
     
-end
-function omega_ba_b = PhiDotToOmega(phi_vec, phi_vec_dot)
-    phi = norm(phi_vec);
-    a = phi_vec/phi;
-
-    if phi < 1e-13
-        % No rotation
-        omega_ba_b = phi_vec_dot;
-    elseif norm(phi_vec_dot) < 1e-13
-        % No rate of change
-        omega_ba_b = zeros(3,1);
-    else
-        % Omega to [a_dot;phi_dot] mapping matrix (Gamma matrix)
-        G = [0.5*(CrossOperator(a) - cot(phi/2)*CrossOperator(a)*CrossOperator(a)); a.'];
-        % [a_dot;phi_dot] to [phi_vec_dot;0] mapping matrix
-        A = [[phi*eye(3),a];[2*a.',0]];
-
-        aphidot = A\[phi_vec_dot;0];
-        omega_ba_b = G\aphidot;
-    end
 end
 function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)
 eta = q_ba(1);

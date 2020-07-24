@@ -82,34 +82,43 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
                 ylabel('$z$ [m]', 'Interpreter', 'Latex')
                 
                 figure
-                subplot(3,1,1)
-                plot(t, waypoints(4,:))
+                subplot(4,1,1)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(1,:))
                 hold on
                 plot(t,spline_points(4,:))
                 hold off
                 grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
-                ylabel('$\phi_1$ [rad]', 'Interpreter', 'Latex')
+                ylabel('$q_1$ [rad]', 'Interpreter', 'Latex')
                 legend('Raw Data', 'Bspline fit')
-                title(['Rotation Vector:', bodyName])
+                title(['Quaternion:', bodyName])
                 
-                subplot(3,1,2)
-                plot(t, waypoints(5,:))
+                subplot(4,1,2)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(2,:))
                 hold on
                 plot(t,spline_points(5,:))
                 hold off
                 grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
-                ylabel('$\phi_2$ [rad]', 'Interpreter', 'Latex')
+                ylabel('$q_2$ [rad]', 'Interpreter', 'Latex')
                 
-                subplot(3,1,3)
-                plot(t, waypoints(6,:))
+                subplot(4,1,3)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(3,:))
                 hold on
                 plot(t,spline_points(6,:))
                 hold off
                 grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
-                ylabel('$\phi)3$ [rad]', 'Interpreter', 'Latex')
+                ylabel('$q_3$ [rad]', 'Interpreter', 'Latex')
+                
+                subplot(4,1,4)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(4,:))
+                hold on
+                plot(t,spline_points(7,:))
+                hold off
+                grid on
+                xlabel('$t$ [s]', 'Interpreter', 'Latex')
+                ylabel('$q_4$ [rad]', 'Interpreter', 'Latex')
                 
                 
                 figure

@@ -1,23 +1,23 @@
 % An example of how to use the Mocap tools.
 
-clear; close all; clc;
+clear; close all;
 
 % addpath('utils/')
 % addpath('calibrationData/')
 
-% Extract Mocap data
+%% Extract Mocap data
 dataMocap = mocap_csv2struct('Sensor_Frame_Calibration_Take_002.csv')
 
-% Fit a b-spline to the Mocap data
+%% Fit a b-spline to the Mocap data
 spline = mocap_fitSpline(dataMocap,[],true)
 
-% Extract the IMU data
+%% Extract the IMU data
 dataIMU = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
 
-% Synchronize the Mocap and IMU data
+%% Synchronize the Mocap and IMU data
 dataSynced = syncTime(spline.RigidBody002, dataIMU)
 
-% Align the frames of the Mocap and IMU data to find an initial DCM
+%% Align the frames of the Mocap and IMU data to find an initial DCM
 [C_sm0, dataAligned] = alignFrames(dataSynced)
 
 %% Refine the DCM between the two assigned body frames
