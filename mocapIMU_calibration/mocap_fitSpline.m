@@ -24,16 +24,9 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
         % ensure it is actually a rigid body and not a marker
         if strcmp(data.(bodyName{1}).type, 'Rigid Body')
             
-            % generate "waypoints", consisting of a sequence of position
-            % vectors r_zw_a and rotation vectors.
-            k = length(data.(bodyName{1}).r_zw_a);
-            waypoints = zeros(6,k);
-            waypoints(1:3,:) = data.(bodyName{1}).r_zw_a;
-            for lv2=1:1:k
-                C_ba = data.(bodyName{1}).C_ba(:,:,lv2);
-                waypoints(4:6,lv2) = DCM_TO_ROTVEC(C_ba);
-            end
-            
+            waypoints = [data.(bodyName{1}).r_zw_a;
+                         data.(bodyName{1}).q_ba];
+                     
             % remove waypoints with missing data
             t = data.(bodyName{1}).t';
             t(:, ~any(waypoints,1)) = [];
@@ -45,7 +38,7 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
                         
             % Generate the defining properties of the B-spline.
             % Assume initial and final velocity, angular velocity are 0
-            [knots, P, ~] = bsplineInterp(waypoints,t,zeros(6,1),zeros(6,1));
+            [knots, P, ~] = bsplineInterp(waypoints,t,zeros(7,1),zeros(7,1));
             
             % Saving the computed B-spline fit.
             bSplineStruct.(bodyName{1}).knots = knots;
