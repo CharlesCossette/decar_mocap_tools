@@ -2,8 +2,8 @@
 
 clear; close all; clc;
 
-%addpath('utils/')
-%addpath('calibrationData/')
+% addpath('utils/')
+% addpath('calibrationData/')
 
 % Extract Mocap data
 dataMocap = mocap_csv2struct('Sensor_Frame_Calibration_Take_002.csv')
@@ -18,7 +18,7 @@ dataIMU = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration
 dataSynced = syncTime(spline.RigidBody002, dataIMU)
 
 % Align the frames of the Mocap and IMU data to find an initial DCM
-[C_sm0, dataAligned] = alignFrames(dataSynced);
+[C_sm0, dataAligned] = alignFrames(dataSynced)
 
 %% Refine the DCM between the two assigned body frames
 phi0 = DCM_TO_ROTVEC(C_sm0);

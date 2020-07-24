@@ -22,7 +22,7 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
         bodyName = rigidBodies(lv1);
         
         % ensure it is actually a rigid body and not a marker
-        if isfield(data.(bodyName{1}), 'q_ba')
+        if strcmp(data.(bodyName{1}).type, 'Rigid Body')
             
             % generate "waypoints", consisting of a sequence of position
             % vectors r_zw_a and rotation vectors.

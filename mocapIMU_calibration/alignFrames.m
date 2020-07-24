@@ -40,7 +40,7 @@ function [C, dataAligned] = alignFrames(data, rightHanded)
         % DCM iterate
         Citer = C1(euler_angles(lv1,1))*C2(euler_angles(lv1,2))*C3(euler_angles(lv1,3));
 
-        for lv2=1:1:length(signs)
+        for lv2=1:1:size(signs,1)
             % flip signs of accelerometers according to the current iterate
             dataIter.accIMU = data.accIMU;
             dataIter.accIMU(1,:) = signs(lv2,1) .* dataIter.accIMU(1,:);
@@ -54,7 +54,7 @@ function [C, dataAligned] = alignFrames(data, rightHanded)
                 output(i:j,:) = Citer * data.accMocap(:,lv4) - dataIter.accIMU(:,lv4);
             end
             
-            for lv3=1:1:length(signs)
+            for lv3=1:1:size(signs,1)
                 % flip signs of gyroscops according to the current iterate
                 dataIter.omegaIMU = data.omegaIMU;
                 dataIter.omegaIMU(1,:) = signs(lv3,1) .* dataIter.omegaIMU(1,:);
