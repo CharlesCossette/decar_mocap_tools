@@ -23,16 +23,23 @@ function [C_sm, costFuncHist] = calibrateFrames(dataSynced, phi, TOL)
     f = @(C) computeErrorVector(C,...
                                 dataSynced.accMocap, dataSynced.omegaMocap,...
                                 dataSynced.accIMU,   dataSynced.omegaIMU);
+    iter = 0
     while norm(delta) > TOL
         e = f(C_sm);
-        A = complexStepJacobianLie(f,C_sm,3,@CrossOperator);
+        A = complexStepJacobianLie(f,C_sm,3,@CrossOperator,'direction','left');
         
-        costFuncHist = [costFuncHist; 0.5*e.'*e];
+        cost = 0.5*(e.'*e)
+        costFuncHist = [costFuncHist; cost];
         
         % update step
-        delta = -(A.'*A + 0.5*eye(3)) \ A.' * e;
+        if iter > 5
+            delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
+        else
+            delta = -(A.'*A) \ A.' * e;
+        end
         
-        C_sm = ROTVEC_TO_DCM(delta)'*C_sm;
+        C_sm = ROTVEC_TO_DCM(delta).'*C_sm;
+        iter = iter + 1;
     end
 
     %% Plotting to evaluate performance visually
@@ -106,19 +113,7 @@ function [C_sm, costFuncHist] = calibrateFrames(dataSynced, phi, TOL)
     
 end
 function output = computeErrorVector(C_sm, accMocap, omegaMocap, accIMU, omegaIMU)
-    numAcc  = length(accIMU);   % number of accel meas
-    numGyr  = length(omegaIMU); % number of gyr meas
-    numMeas = numAcc + numGyr;             % total number of accel 
-                                           % and gyro meas.)
-    output = zeros(3*numMeas, 1); % error vector
-    for lv1=1:1:numAcc
-        i = 3*(lv1-1)+1;
-        j = 3*lv1;
-        output(i:j,:) = C_sm * accMocap(:,lv1) - accIMU(:,lv1);
-    end
-    for lv1=1:1:numGyr
-        i = numAcc + 3*(lv1-1)+1;
-        j = numAcc + 3*lv1;
-        output(i:j,:) = C_sm * omegaMocap(:,lv1) - omegaIMU(:,lv1);
-    end
+    error_accel = C_sm*accMocap - accIMU;
+    error_omega = C_sm*omegaMocap - omegaIMU;
+    output = [error_accel(:);error_omega(:)];
 end
