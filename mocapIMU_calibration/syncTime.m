@@ -91,16 +91,22 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     
     
     %% Visualizing the time synchronization
+    figure
     plot(t_synced, vecnorm(IMU_acc_synced))
     hold on
     plot(t_synced, vecnorm(Mocap_acc_synced))
-
+    hold off
+    grid on
+    xlabel('$x$ [s]','interpreter','latex')
+    ylabel('$a^{zw/a/a}_b$ [m/s^2]','interpreter','latex')
+    
     figure
     plot(t_synced, vecnorm(IMU_gyr_synced))
     hold on
     plot(t_synced, vecnorm(Mocap_omega_synced))
-    
-    
+    hold off   
+    xlabel('$x$ [s]','interpreter','latex')
+    ylabel('\omega^{ba}_b','interpreter','latex')
     %% Save the synchronized data
     syncedData.t          = t_synced;
     syncedData.accIMU     = IMU_acc_synced;
