@@ -27,7 +27,7 @@ function  S = mocap_csv2struct(filename)
 % --------
 %   S: [struct] with fields
 %       t: [N x 1] double.
-%           Time points of all the data
+%           Time points of all the data.
 %       r_zw_a: [3 x N] double.
 %           Location of "pivot point" of the rigid body, or location of the
 %           marker in the mocap world frame set by calibrating the ground
@@ -38,6 +38,8 @@ function  S = mocap_csv2struct(filename)
 %           axis switch described above.
 %       C_ba: [3 x 3 x N] double.
 %           DCM corresponding to the above quaternion.
+%       mocapGaps: [2 x M]
+%           Sections of time where no ground truth data was collected.
 
 % Use built-in matlab function to automatically detect the header rows.
 opts = detectImportOptions(filename);
@@ -148,8 +150,77 @@ for lv1 = 1:numel(IDs)
     S.(name).r_zw_a = [data(:,pos_z_col).';
                        data(:,pos_x_col).';
                        data(:,pos_y_col).'];
-    
 end
+
+%% Step 4 - For each ID, extract time range where the object was outside
+%           the Mocap coverage area.
+
+% User-defined parameters
+% TODO: 1) decide whether it's worth having these as inputs to the function
+thresDiff = 1; % the maximum gap in seconds in which two sets of missing 
+               % data are considered to belong to the same time range
+bufferSize = 1; % the size of the gap before and after missing data to be 
+                % considered as missing data as well. Defined in seconds.
+
+objectNames = fieldnames(S);
+objectNum   = length(objectNames);
+for lv1=1:1:objectNum
+    object = S.(objectNames{lv1});
+    t      = object.t';
+    
+    % Extract the waypoints based on the Mocap readings.
+    if strcmp(object.type, 'Rigid Body')
+        waypointsIter = [object.r_zw_a; object.q_ba];
+    else
+        waypointsIter = object.r_zw_a;
+    end
+    
+    % Find timesteps where there is missing data.
+    tMissing = t(:, ~any(waypointsIter,1));
+    
+    % Find the time difference between the datapoints with missing data.
+    tMissingDiff = [tMissing(1), diff(tMissing)];
+    
+    % Find the indices of datapoints where the time difference exceeds a
+    % threshold.
+    tMissingIndices = find(tMissingDiff>thresDiff);
+    if tMissingIndices(end) ~= length(tMissing)
+        tMissingIndices = [tMissingIndices, length(tMissing)];
+    end
+        
+    rangeIgnore = [];
+    for lv2=1:1:length(tMissingIndices)-1
+        % check if ll(b) is a solo point or lies within a range of data
+        
+        if length(tMissing) ==79
+            1
+        end
+        
+        if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
+            
+            % compute lower limit
+            lower = tMissing(tMissingIndices(lv2)) - bufferSize;
+            if lower < 0; lower = 0; end
+            
+            % compute upperlimit
+            upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
+            
+            % save range
+            if isempty(rangeIgnore)
+                rangeIgnore = [rangeIgnore, [lower; upper]];
+            elseif lower > rangeIgnore(2,end)
+                rangeIgnore = [rangeIgnore, [lower; upper]];
+            else
+                rangeIgnore(2,end) = upper;
+            end
+        end
+    end
+    
+    S.(objectNames{lv1}).mocapGaps = rangeIgnore;
+end
+
+
+
 
 end
 function y = stringincell(x,str)
