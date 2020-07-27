@@ -34,8 +34,6 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
                                 dataSynced.accIMU,   dataSynced.omegaIMU);
 
     % Compute the Jacobian w.r.t. the biases
-    numAcc = length(dataSynced.accMocap);
-    numGyr = length(dataSynced.omegaMocap);
     A_biases = [-repmat(eye(3),numAcc,1), zeros(3*numAcc,3);...
                 zeros(3*numGyr,3),        -repmat(eye(3),numGyr,1)];
                             
@@ -73,14 +71,8 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
     end
 
     %% Plotting to evaluate performance visually
-    accMocap_calibrated = zeros(3,numAcc);
-    for lv1=1:1:numAcc
-        accMocap_calibrated(1:3,lv1) = C_sm * dataSynced.accMocap(:,lv1) - biasAcc;
-    end
-    omegaMocap_calibrated = zeros(3,numGyr);
-    for lv1=1:1:numGyr
-        omegaMocap_calibrated(1:3,lv1) = C_sm * dataSynced.omegaMocap(:,lv1) - biasGyr;
-    end
+    accMocap_calibrated   = C_sm * dataSynced.accMocap   - repmat(biasAcc, 1, numAcc);
+    omegaMocap_calibrated = C_sm * dataSynced.omegaMocap - repmat(biasGyr, 1, numGyr);
 
     % Plot calibrated data - accelerometers
     figure
