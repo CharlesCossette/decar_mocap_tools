@@ -1,4 +1,4 @@
-function [C_sm, costFuncHist] = calibrateFrames(dataSynced, phi, TOL)
+function C_sm = calibrateFrames(dataSynced, phi, TOL)
 % Find the DCM C_sm representing the rotation between the sensor frame of the 
 % IMU (F_s) and the body frame assigned by the Mocap system (F_m).
 % Requires the complexStepJacobianLie code from decar_utils.
