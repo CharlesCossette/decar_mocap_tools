@@ -29,7 +29,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
         C_ba   = quat2dcm(q_ba.');
         
         % extract acceleration + gravity
-        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*[-0.24;-0.21;9.78]; %% TODO: add user-defined bias corrections
+        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*[0;0;9.81]; %% TODO: add user-defined bias corrections
     end
     
     %% Finding the timestep in which a spike occurs in both datasets
@@ -87,7 +87,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
 
         % Mocap acceleration data
         C_ba = quat2dcm(q_ba.');
-        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1)+C_ba*[-0.24;-0.21;9.78];
+        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1) + C_ba*[0;0;9.81];
     end
     
     

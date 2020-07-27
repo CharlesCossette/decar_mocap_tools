@@ -23,5 +23,5 @@ dataSynced = syncTime(spline.RigidBody002, dataIMU)
 %% Refine the DCM between the two assigned body frames
 phi0 = DCM_TO_ROTVEC(C_sm0);
 % [C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned, phi0);
-x0 = [phi0;0;0;9.81;0;0;0];
-[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned);
+x0 = [phi0;0;0;0;0;0;0];
+[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned, x0)

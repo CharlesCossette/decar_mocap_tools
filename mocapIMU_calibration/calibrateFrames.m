@@ -9,7 +9,7 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
     end
     if nargin <2
         x = [0;0;0;...      % default initial phi
-             0;0;9.81;...   % default initial accelerometer bias
+             0;0;0;...      % default initial accelerometer bias
              0;0;0];        % default initial gyroscope bias
     end
     if nargin < 3
@@ -75,11 +75,11 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
     %% Plotting to evaluate performance visually
     accMocap_calibrated = zeros(3,numAcc);
     for lv1=1:1:numAcc
-        accMocap_calibrated(1:3,lv1) = C_sm * dataSynced.accMocap(:,lv1);
+        accMocap_calibrated(1:3,lv1) = C_sm * dataSynced.accMocap(:,lv1) - biasAcc;
     end
     omegaMocap_calibrated = zeros(3,numGyr);
     for lv1=1:1:numGyr
-        omegaMocap_calibrated(1:3,lv1) = C_sm * dataSynced.omegaMocap(:,lv1);
+        omegaMocap_calibrated(1:3,lv1) = C_sm * dataSynced.omegaMocap(:,lv1) - biasGyr;
     end
 
     % Plot calibrated data - accelerometers
