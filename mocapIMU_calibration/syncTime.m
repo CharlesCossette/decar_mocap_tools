@@ -25,8 +25,8 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     tempDerv = bsplineDerv(knots,knots,P,3,2);
     for lv1=1:numKnots     
         % extract attitude
-        phi_ba = temp(4:6,lv1);
-        C_ba   = ROTVEC_TO_DCM(phi_ba);
+        q_ba = temp(4:7,lv1);
+        C_ba   = quat2dcm(q_ba.');
         
         % extract acceleration + gravity
         mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*[-0.24;-0.21;9.78]; %% TODO: add user-defined bias corrections
@@ -79,28 +79,39 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
         IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,i);
 
         % Mocap omega data
-        phi_ba     = temp(4:6,lv1);
-        phi_ba_dot = tempDerv(4:6,lv1);
-        omega = PhiDotToOmega(phi_ba, phi_ba_dot);
+        q_ba     = temp(4:7,lv1);
+        q_ba = q_ba./norm(q_ba);
+        q_ba_dot = tempDerv(4:7,lv1);
+        omega = quatrate2omega(q_ba, q_ba_dot);
         Mocap_omega_synced(:,lv1) = omega;
 
         % Mocap acceleration data
-        C_ba = ROTVEC_TO_DCM(phi_ba);
+        C_ba = quat2dcm(q_ba.');
         Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1)+C_ba*[-0.24;-0.21;9.78];
     end
     
     
     %% Visualizing the time synchronization
+    figure
     plot(t_synced, vecnorm(IMU_acc_synced))
     hold on
     plot(t_synced, vecnorm(Mocap_acc_synced))
-
+    hold off
+    grid on
+    xlabel('$x$ [s]','interpreter','latex')
+    ylabel('$a^{zw / a /a}_b$ [m/s^2]','interpreter','latex')
+    legend('IMU Data','Mocap Data')
+    
     figure
     plot(t_synced, vecnorm(IMU_gyr_synced))
     hold on
     plot(t_synced, vecnorm(Mocap_omega_synced))
-    
-    
+    hold off   
+    xlabel('$x$ [s]','interpreter','latex')
+    ylabel('$\omega^{ba}_b$','interpreter','latex')
+    grid on
+    legend('IMU Data','Mocap Data')
+    title('Angular Velocity')
     %% Save the synchronized data
     syncedData.t          = t_synced;
     syncedData.accIMU     = IMU_acc_synced;
@@ -109,23 +120,9 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     syncedData.omegaMocap = Mocap_omega_synced;
     
 end
-function omega_ba_b = PhiDotToOmega(phi_vec, phi_vec_dot)
-    phi = norm(phi_vec);
-    a = phi_vec/phi;
-
-    if phi < 1e-13
-        % No rotation
-        omega_ba_b = phi_vec_dot;
-    elseif norm(phi_vec_dot) < 1e-13
-        % No rate of change
-        omega_ba_b = zeros(3,1);
-    else
-        % Omega to [a_dot;phi_dot] mapping matrix (Gamma matrix)
-        G = [0.5*(CrossOperator(a) - cot(phi/2)*CrossOperator(a)*CrossOperator(a)); a.'];
-        % [a_dot;phi_dot] to [phi_vec_dot;0] mapping matrix
-        A = [[phi*eye(3),a];[2*a.',0]];
-
-        aphidot = A\[phi_vec_dot;0];
-        omega_ba_b = G\aphidot;
-    end
+function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)
+eta = q_ba(1);
+epsilon = q_ba(2:4);
+S = [-2*epsilon, 2*(eta*eye(3) - CrossOperator(epsilon))];
+omega_ba_b = S*q_ba_dot;
 end

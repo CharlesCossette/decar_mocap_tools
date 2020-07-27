@@ -24,16 +24,9 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
         % ensure it is actually a rigid body and not a marker
         if strcmp(data.(bodyName{1}).type, 'Rigid Body')
             
-            % generate "waypoints", consisting of a sequence of position
-            % vectors r_zw_a and rotation vectors.
-            k = length(data.(bodyName{1}).r_zw_a);
-            waypoints = zeros(6,k);
-            waypoints(1:3,:) = data.(bodyName{1}).r_zw_a;
-            for lv2=1:1:k
-                C_ba = data.(bodyName{1}).C_ba(:,:,lv2);
-                waypoints(4:6,lv2) = DCM_TO_ROTVEC(C_ba);
-            end
-            
+            waypoints = [data.(bodyName{1}).r_zw_a;
+                         data.(bodyName{1}).q_ba];
+                     
             % remove waypoints with missing data
             t = data.(bodyName{1}).t';
             t(:, ~any(waypoints,1)) = [];
@@ -45,7 +38,7 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
                         
             % Generate the defining properties of the B-spline.
             % Assume initial and final velocity, angular velocity are 0
-            [knots, P, ~] = bsplineInterp(waypoints,t,zeros(6,1),zeros(6,1));
+            [knots, P, ~] = bsplineInterp(waypoints,t,zeros(7,1),zeros(7,1));
             
             % Saving the computed B-spline fit.
             bSplineStruct.(bodyName{1}).knots = knots;
@@ -54,10 +47,11 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
             % Evaluating the performance of the fit, visually
             % user-defined trigger
             if visualBool
-                figure
+                
                 p=3;
                 spline_points = bspline(t,knots,P,p);
                 
+                figure
                 subplot(3,1,1)
                 plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(1,:))
                 hold on
@@ -67,25 +61,65 @@ function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
                 ylabel('$x$ [m]', 'Interpreter', 'Latex')
                 legend('Raw Data', 'Bspline fit')
-                title('Position')
+                title(['Position', bodyName])
                 
                 subplot(3,1,2)
-                plot(t, waypoints(2,:))
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(2,:))
                 hold on
                 plot(t,spline_points(2,:))
                 hold off
                 grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
-                ylabel('$x$ [m]', 'Interpreter', 'Latex')
+                ylabel('$y$ [m]', 'Interpreter', 'Latex')
                 
                 subplot(3,1,3)
-                plot(t, waypoints(3,:))
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(3,:))
                 hold on
                 plot(t,spline_points(3,:))
                 hold off
                 grid on
                 xlabel('$t$ [s]', 'Interpreter', 'Latex')
                 ylabel('$z$ [m]', 'Interpreter', 'Latex')
+                
+                figure
+                subplot(4,1,1)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(1,:))
+                hold on
+                plot(t,spline_points(4,:))
+                hold off
+                grid on
+                xlabel('$t$ [s]', 'Interpreter', 'Latex')
+                ylabel('$q_1$ [rad]', 'Interpreter', 'Latex')
+                legend('Raw Data', 'Bspline fit')
+                title(['Quaternion:', bodyName])
+                
+                subplot(4,1,2)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(2,:))
+                hold on
+                plot(t,spline_points(5,:))
+                hold off
+                grid on
+                xlabel('$t$ [s]', 'Interpreter', 'Latex')
+                ylabel('$q_2$ [rad]', 'Interpreter', 'Latex')
+                
+                subplot(4,1,3)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(3,:))
+                hold on
+                plot(t,spline_points(6,:))
+                hold off
+                grid on
+                xlabel('$t$ [s]', 'Interpreter', 'Latex')
+                ylabel('$q_3$ [rad]', 'Interpreter', 'Latex')
+                
+                subplot(4,1,4)
+                plot(data.(bodyName{1}).t, data.(bodyName{1}).q_ba(4,:))
+                hold on
+                plot(t,spline_points(7,:))
+                hold off
+                grid on
+                xlabel('$t$ [s]', 'Interpreter', 'Latex')
+                ylabel('$q_4$ [rad]', 'Interpreter', 'Latex')
+                
                 
                 figure
                 plot3(data.(bodyName{1}).r_zw_a(1,:),data.(bodyName{1}).r_zw_a(2,:),data.(bodyName{1}).r_zw_a(3,:))
