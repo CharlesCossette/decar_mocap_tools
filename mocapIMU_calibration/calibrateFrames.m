@@ -1,13 +1,16 @@
-function C_sm = calibrateFrames(dataSynced, phi, TOL)
+function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
 % Find the DCM C_sm representing the rotation between the sensor frame of the 
-% IMU (F_s) and the body frame assigned by the Mocap system (F_m).
+% IMU (F_s) and the body frame assigned by the Mocap system (F_m), as well
+% as the accelerometer and gyroscope biases.
 % Requires the complexStepJacobianLie code from decar_utils.
 
     if nargin < 1
         error('Missing data')
     end
     if nargin <2
-        phi = [0;0;0]; % initial guess
+        x = [0;0;0;...      % default initial phi
+             0;0;0;...      % default initial accelerometer bias
+             0;0;0];        % default initial gyroscope bias
     end
     if nargin < 3
         TOL = 1E-4; % default nonlinear least squares convergence tolerance 
@@ -18,39 +21,58 @@ function C_sm = calibrateFrames(dataSynced, phi, TOL)
     delta = Inf;
 
     %% LS Optimization on SO(3), using Gauss-Newton
+    
+    % initialize 
     costFuncHist = [];
+    phi = x(1:3);
+    biasAcc = x(4:6);
+    biasGyr = x(7:9);
     C_sm = ROTVEC_TO_DCM(phi);
-    f = @(C) computeErrorVector(C,...
+    
+    f = @(C, bAcc, bGyr) computeErrorVector(C, bAcc, bGyr,...
                                 dataSynced.accMocap, dataSynced.omegaMocap,...
                                 dataSynced.accIMU,   dataSynced.omegaIMU);
-    iter = 0
+
+    % Compute the Jacobian w.r.t. the biases
+    A_biases = [-repmat(eye(3),numAcc,1), zeros(3*numAcc,3);...
+                zeros(3*numGyr,3),        -repmat(eye(3),numGyr,1)];
+                            
+    iter = 0;
     while norm(delta) > TOL
-        e = f(C_sm);
-        A = complexStepJacobianLie(f,C_sm,3,@CrossOperator,'direction','left');
+        % compute error vector
+        e = f(C_sm, biasAcc, biasGyr);
+        
+        % compute Jacobian
+        f_Csm = @(C) f(C, biasAcc, biasGyr);
+        A_phi = complexStepJacobianLie(f_Csm,C_sm,3,@CrossOperator,'direction','left');
+        A     = [A_phi, A_biases];
         
         cost = 0.5*(e.'*e)
         costFuncHist = [costFuncHist; cost];
         
-        % update step
+        % Compute step direction
         if iter > 5
             delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
         else
             delta = -(A.'*A) \ A.' * e;
         end
         
-        C_sm = ROTVEC_TO_DCM(delta).'*C_sm;
+        % decompose
+        del_phi     = delta(1:3);
+        del_biasAcc = delta(4:6);
+        del_biasGyr = delta(7:9);
+        
+        % Update
+        C_sm = ROTVEC_TO_DCM(del_phi).'*C_sm;
+        biasAcc = biasAcc + del_biasAcc;
+        biasGyr = biasGyr + del_biasGyr;
+        
         iter = iter + 1;
     end
 
     %% Plotting to evaluate performance visually
-    accMocap_calibrated = zeros(3,numAcc);
-    for lv1=1:1:numAcc
-        accMocap_calibrated(1:3,lv1) = C_sm * dataSynced.accMocap(:,lv1);
-    end
-    omegaMocap_calibrated = zeros(3,numGyr);
-    for lv1=1:1:numGyr
-        omegaMocap_calibrated(1:3,lv1) = C_sm * dataSynced.omegaMocap(:,lv1);
-    end
+    accMocap_calibrated   = C_sm * dataSynced.accMocap   - repmat(biasAcc, 1, numAcc);
+    omegaMocap_calibrated = C_sm * dataSynced.omegaMocap - repmat(biasGyr, 1, numGyr);
 
     % Plot calibrated data - accelerometers
     figure
@@ -112,8 +134,8 @@ function C_sm = calibrateFrames(dataSynced, phi, TOL)
     ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
-function output = computeErrorVector(C_sm, accMocap, omegaMocap, accIMU, omegaIMU)
-    error_accel = C_sm*accMocap - accIMU;
-    error_omega = C_sm*omegaMocap - omegaIMU;
+function output = computeErrorVector(C_sm, bAcc, bGyr, accMocap, omegaMocap, accIMU, omegaIMU)
+    error_accel = C_sm*accMocap - (accIMU + bAcc);
+    error_omega = C_sm*omegaMocap - (omegaIMU + bGyr);
     output = [error_accel(:);error_omega(:)];
 end

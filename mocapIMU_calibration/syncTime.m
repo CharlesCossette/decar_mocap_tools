@@ -4,9 +4,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
 % The input should be for one rigid body and one IMU.
 % Currently outputing only the IMU accelerometer and the gyroscope.
 % Requires the bspline code from decar_utils.
-% TODO: 1) Preallocate memory for computational efficiency
-%       2) add mag, baro..
-%       3) add user-defined bias corrections (PRIORITY!)
+% TODO: 1) add mag, baro..
 
     if nargin < 2
         error('Missing data')
@@ -15,6 +13,8 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
+    g_a = [0;0;9.8]; % gravity 
+    
     knots = bSplineStruct.knots;
     P     = bSplineStruct.P;
     
@@ -29,7 +29,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
         C_ba   = quat2dcm(q_ba.');
         
         % extract acceleration + gravity
-        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*[-0.24;-0.21;9.78]; %% TODO: add user-defined bias corrections
+        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*g_a;
     end
     
     %% Finding the timestep in which a spike occurs in both datasets
@@ -87,7 +87,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
 
         % Mocap acceleration data
         C_ba = quat2dcm(q_ba.');
-        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1)+C_ba*[-0.24;-0.21;9.78];
+        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1) + C_ba*g_a;
     end
     
     

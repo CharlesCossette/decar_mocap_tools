@@ -25,4 +25,6 @@ dataSyncedCleaned = deleteGaps(dataSynced, dataMocap.RigidBody002.mocapGaps)
 
 %% Refine the DCM between the two assigned body frames
 phi0 = DCM_TO_ROTVEC(C_sm0);
-C_sm = calibrateFrames(dataAligned, phi0);
+% [C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned, phi0);
+x0 = [phi0;0;0;0;0;0;0];
+[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned, x0)
