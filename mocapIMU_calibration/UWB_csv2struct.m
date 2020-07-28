@@ -2,11 +2,11 @@ function S = UWB_csv2struct(filename, t0)
 % Extracts UWB data.
 % The input t0 synchronizes the UWB data with the IMU.
 
-    opts = detectImportOptions(filename, 'Delimiter', ',', 'Whitespace', ' ()\b\t');
+    opts = detectImportOptions(filename, 'Delimiter', ',');
     header_row_range = [num2str(1),':',num2str(opts.DataLine(1)+1)];
 
-    headers = readcell(filename,'Range',header_row_range);
-    data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1));
+    headers = readcell(filename, 'Range',header_row_range, 'Delimiter', ',');
+    data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1), 'Delimiter', ',');
 
     %% STEP 1 - Remove any columns with barely any data
     % Criteria: If less than 99% of rows have data, delete column.

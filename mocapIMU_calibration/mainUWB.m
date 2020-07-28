@@ -6,7 +6,7 @@ clear; close all;
 dataMocap = mocap_csv2struct('Sensor_Frame_Calibration_Take_002.csv')
 
 %% Extract the IMU data
-[dataIMU, imuFirst_t] = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
+[dataIMU, imuFirst_t] = IMU_csv2struct('2020_07_15_trial3_mmagent1_imu.csv')
 
 %% Extract the UWB data
 % To synchronize the IMU and the UWB files, ensure that "imuFirst_t" comes
