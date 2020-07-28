@@ -1,4 +1,4 @@
-function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
+function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -44,6 +44,9 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     spikeIndexMocap = find(accNormMocap>accThreshold,1,'first');
     tSyncMocap      = knots(spikeIndexMocap); % the timestep of the spike in 
                                               % the Mocap ground truth data
+    
+    % the offset, to be used to extract Mocap data for the UWB data as well
+    offset          = tSyncMocap - tSyncIMU;
                                               
     %% Generating the synced data
     index_synced       = [];
@@ -107,7 +110,7 @@ function syncedData = syncTime(bSplineStruct, dataIMU, accThreshold)
     hold on
     plot(t_synced, vecnorm(Mocap_omega_synced))
     hold off   
-    xlabel('$x$ [s]','interpreter','latex')
+    xlabel('$t$ [s]','interpreter','latex')
     ylabel('$\omega^{ba}_b$','interpreter','latex')
     grid on
     legend('IMU Data','Mocap Data')

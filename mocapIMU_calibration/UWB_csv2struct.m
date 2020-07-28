@@ -65,13 +65,13 @@ function S = UWB_csv2struct(filename, t0)
             tag2 = temp(tagNameIndex:tagNameIndex+5);
             
             % save 
-            S.(['tags', '_', tag1, '_', tag2]) = data(:,lv1);
+            S.(['tags', '_', tag1, '_', tag2]).meas = data(:,lv1);
             
             % ensure all units are in meters
             if contains(headers(headerRow,lv1),'(mm)') 
-                S.(['tags', '_', tag1, '_', tag2]) = S.(['tags', '_', tag1, '_', tag2])/1000;
+                S.(['tags', '_', tag1, '_', tag2]).meas = S.(['tags', '_', tag1, '_', tag2]).meas/1000;
             elseif contains(headers(headerRow,lv1),'(cm)') 
-                S.(['tags', '_', tag1, '_', tag2]) = S.(['tags', '_', tag1, '_', tag2])/100;
+                S.(['tags', '_', tag1, '_', tag2]).meas = S.(['tags', '_', tag1, '_', tag2]).meas/100;
             elseif ~contains(headers(headerRow,lv1),'(m)')
                 warning('Unrecognized range unit.')
             end    
