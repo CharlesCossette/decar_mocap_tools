@@ -62,5 +62,15 @@ function varargout = extractUwbBias(splineMocap, dataUWB, r_pz_b, bodyNames, tag
         error = dataUWB.(fieldIter).meas - dist;
         error = rmmissing(error);
         varargout{lv1-1} = mean(error);
+        
+        figure
+        title(fields)
+        [meas, measIndex] = rmmissing(dataUWB.(fieldIter).meas);
+        plot(dataUWB.t(~measIndex), meas - mean(error))
+        hold on
+        plot(dataUWB.t, dist)
+        grid
+        xlabel('$t$ [s]', 'Interpreter', 'Latex')
+        ylabel('Distance [m]', 'Interpreter', 'Latex')
     end
 end
