@@ -61,7 +61,6 @@ function varargout = extractUwbBias(splineMocap, dataUWB, r_pz_b, bodyNames, tag
         % compute average distance bias
         error = dataUWB.(fieldIter).meas - dist;
         error = rmmissing(error);
-        error = error(1:300);
         varargout{lv1-1} = mean(error);
     end
 end
