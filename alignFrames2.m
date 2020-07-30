@@ -1,4 +1,4 @@
-function [C_am, dataAligned] = alignFrames2(dataSynced, rightHanded)
+function [dataAligned, C_am, C_gm] = alignFrames2(dataSynced, rightHanded)
 % If rightHanded == true, then transformations are restricted to be
 % positive-determinant DCMs.
 
@@ -92,9 +92,11 @@ function [C_am, dataAligned] = alignFrames2(dataSynced, rightHanded)
     disp('Best fit gyroscope DCM:')
     C_gm_best
     
+    dataAligned = dataSynced;
     dataAligned.accIMU = C_am_best.'*dataSynced.accIMU;
     dataAligned.omegaIMU = C_gm_best.'*dataSynced.omegaIMU;
     C_am = C_am_best;
+    C_gm = C_gm_best;
         
 end
 

@@ -50,13 +50,12 @@ dataSyncedCleaned = deleteGaps(dataSynced, dataMocap.RigidBody002.mocapGaps)
 
 %% Align the frames of the Mocap and IMU data to find an initial DCM
 tic
-[C2, dataAligned2] = alignFrames2(dataSyncedCleaned)
+[dataAligned2] = alignFrames2(dataSyncedCleaned)
 toc
 %%
-tic
-[C_sm0, dataAligned] = alignFrames(dataSyncedCleaned)
-toc
+% tic
+% [C_sm0, dataAligned] = alignFrames(dataSyncedCleaned)
+% toc
 %% Refine the DCM between the two assigned body frames
-phi0 = DCM_TO_ROTVEC(C_sm0);
-x0 = [phi0;0;0;0;0;0;0];
-[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned, x0)
+
+[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned2)
