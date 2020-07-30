@@ -1,29 +1,18 @@
-# README #
+# DECAR Mocap Tools #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+## Setup - Simple Cloning
+Simply clone this repository and initialize the submodules, which for now is only `decar_utils`:
 
-### What is this repository for? ###
+    git submodule init
+    git submodule update
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+These commands should prompt you for your Bitbucket username and password. 
 
-### How do I get set up? ###
+## Setup - Adding as a submodule to your project repo
+Instead of cloning, you may add this repo as its own submodule inside of your own project repository. To do this,
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+    git submodule add https://bitbucket.org/decargroup/decar_mocap_tools.git
 
-### Contribution guidelines ###
+and you will also be prompted for your Bitbucket username and password. Then, make sure to initialize the submodules using the `--recursive` option so that the submodules inside `decar_mocap_tool` also get initialized.
 
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+    git submodule update --init --recursive
