@@ -1,2 +1,6 @@
-data/
+# Python
 __pycache__/
+
+# MATLAB
+*.asv
+*.m~
