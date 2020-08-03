@@ -102,7 +102,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
     hold off
     grid on
     xlabel('$x$ [s]','interpreter','latex')
-    ylabel('$a^{zw / a /a}_b$ [m/s^2]','interpreter','latex')
+    ylabel('$a^{zw/a/a}$ [m/s$^2$]','interpreter','latex')
     legend('IMU Data','Mocap Data')
     
     figure
