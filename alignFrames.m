@@ -1,9 +1,9 @@
-function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHanded)
+function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
 % If rightHanded == true, then transformations are restricted to be
 % positive-determinant DCMs.
 
     if nargin < 2
-        rightHanded = false; % by default, assume the possibility of 
+        rightHandedOnly = false; % by default, assume the possibility of 
                              % left-handed frames
     end
     
@@ -28,12 +28,13 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHanded)
     % Strip duplicates
     C_list = round(C_list); % round to eliminate numerical errors
     C_list_rows = mat3D2rows(C_list);
+    C_list_rows(all(C_list_rows == 0,2),:) = []; % Remove any that are all zeros.
     C_list_rows = unique(C_list_rows,'rows');
     C_list = rows2mat3D(C_list_rows);
     
     % For each of the right handed DCMs, create all possible left-handed
     % DCMs
-    if rightHanded
+    if rightHandedOnly
         C_all = C_list;
     else
         C_all = zeros(3,3,size(C_list,3)*size(signs,1));
@@ -47,6 +48,7 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHanded)
         % Strip duplicates again
         C_all = round(C_all); % round to eliminate numerical errors
         C_all_rows = mat3D2rows(C_all);
+        C_list_rows(all(C_list_rows == 0,2),:) = []; % Remove any that are all zeros.
         C_all_rows = unique(C_all_rows,'rows');
         C_all = rows2mat3D(C_all_rows);
     end
