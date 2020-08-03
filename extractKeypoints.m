@@ -1,5 +1,5 @@
 function varargout = extractKeypoints(filename, rigidBodies, labels)
-% This function is deprecated and can be used in the exact same way as
+% This function can be used in the exact same way as
 % mocap_getPointInBodyFrame().
     nOutputs  = nargout;
     varargout = cell(1,nOutputs);    
