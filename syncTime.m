@@ -13,7 +13,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
-    g_a = [0;0;9.8]; % gravity 
+    g_a = [0;0;9.80665]; % gravity 
     
     knots = bSplineStruct.knots;
     P     = bSplineStruct.P;
@@ -26,6 +26,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
     for lv1=1:numKnots     
         % extract attitude
         q_ba = temp(4:7,lv1);
+        q_ba = q_ba./norm(q_ba);
         C_ba   = quat2dcm(q_ba.');
         
         % extract acceleration + gravity

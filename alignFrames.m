@@ -126,10 +126,12 @@ function Cs = rows2mat3D(C_rows)
 end
 
 function output = computeErrorAccel(C_sm,dataSynced)
-    error_accel = C_sm*dataSynced.accMocap - dataSynced.accIMU;
+    gaps = dataSynced.gapIndices;
+    error_accel = C_sm*dataSynced.accMocap(:,~gaps) - dataSynced.accIMU(:,~gaps);
     output = [error_accel(:)];
 end
 function output = computeErrorGyro(C_sm,dataSynced)
-    error_omega = C_sm*dataSynced.omegaMocap - dataSynced.omegaIMU;
+    gaps = dataSynced.gapIndices;
+    error_omega = C_sm*dataSynced.omegaMocap(:,~gaps) - dataSynced.omegaIMU(:,~gaps);
     output = [error_omega(:)];
 end
