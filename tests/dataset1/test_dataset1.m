@@ -25,11 +25,12 @@ tic
 dataSynced = syncTime(spline.RigidBody, dataIMU)
 toc
 %% Disregard IMU data within the time ranges where no ground truth was collected
-dataSyncedCleaned = deleteGaps(dataSynced, dataMocap.RigidBody.mocapGaps)
+[dataSyncedCleaned, gapIndices] = deleteGaps(dataSynced, dataMocap.RigidBody.mocapGaps)
+dataSynced.gapIndices = gapIndices
 
 %% Align the frames of the Mocap and IMU data to find an initial DCM
 tic
-dataAligned = alignFrames(dataSyncedCleaned)
+dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
 
