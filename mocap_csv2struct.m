@@ -158,6 +158,7 @@ for lv1 = 1:numel(IDs)
                  ' that the Y-axis was in fact the up/vertical one.']);
             q_bprimeb = [-0.5;0.5;0.5;0.5];
             S.(name).q_ba = quatmul(q_bprimeb,S.(name).q_ba);
+            S.(name).C_ba = quat2dcm(S.(name).q_ba.');
         end
         
     end
