@@ -38,7 +38,7 @@ for lv1=1:1:numel(rigidBodies)
         
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
-        [knots, P, ~] = bsplineInterp(waypoints,t,zeros(7,1),zeros(7,1));
+        [knots, P, ~] = bsplineInterp(waypoints,t,[],[],3);
         
         % Saving the computed B-spline fit.
         bSplineStruct.(bodyName{1}).knots = knots;

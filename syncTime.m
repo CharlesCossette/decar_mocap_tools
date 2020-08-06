@@ -13,7 +13,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
-    g_a = [0;0;9.80665]; % gravity 
+    g_a = [0;0;-9.80665]; % gravity 
     
     knots = bSplineStruct.knots;
     P     = bSplineStruct.P;
@@ -21,8 +21,9 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
     %% Generating Mocap accelerometer data using fitted spline
     numKnots = length(bSplineStruct.knots);
     mocap_acc = zeros(3, numKnots);
-    temp     = bspline(knots,knots,P,3);
-    tempDerv = bsplineDerv(knots,knots,P,3,2);
+    p = 3;
+    temp     = bspline(knots,knots,P,p);
+    tempDerv = bsplineDerv(knots,knots,P,p,2);
     for lv1=1:numKnots     
         % extract attitude
         q_ba = temp(4:7,lv1);
@@ -30,7 +31,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
         C_ba   = quat2dcm(q_ba.');
         
         % extract acceleration + gravity
-        mocap_acc(:,lv1) = tempDerv(1:3,lv1) + C_ba*g_a;
+        mocap_acc(:,lv1) = C_ba*(tempDerv(1:3,lv1) - g_a);
     end
     
     %% Finding the timestep in which a spike occurs in both datasets
@@ -69,9 +70,10 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
     end
     
     % Extract information from the b-spline fit at the required timesteps.
-    temp      = bspline(t_synced,knots,P,3);
-    tempDerv  = bsplineDerv(t_synced,knots,P,3,1);
-    tempDerv2 = bsplineDerv(t_synced,knots,P,3,2);
+    p = 3;
+    temp      = bspline(t_synced,knots,P,p);
+    tempDerv  = bsplineDerv(t_synced,knots,P,p,1);
+    tempDerv2 = bsplineDerv(t_synced,knots,P,p,2);
     
     IMU_acc_synced     = zeros(3,length(t_synced));
     IMU_gyr_synced     = zeros(3,length(t_synced));
@@ -91,7 +93,7 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
 
         % Mocap acceleration data
         C_ba = quat2dcm(q_ba.');
-        Mocap_acc_synced(:,lv1) = tempDerv2(1:3,lv1) + C_ba*g_a;
+        Mocap_acc_synced(:,lv1) = C_ba*(tempDerv2(1:3,lv1) - g_a);
     end
     
     
