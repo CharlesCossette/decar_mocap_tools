@@ -1,4 +1,4 @@
-function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
+function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -15,15 +15,13 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
 
     g_a = [0;0;-9.80665]; % gravity 
     
-    knots = bSplineStruct.knots;
-    P     = bSplineStruct.P;
+    knots = splineStruct.breaks;
     
     %% Generating Mocap accelerometer data using fitted spline
-    numKnots = length(bSplineStruct.knots);
+    numKnots = length(splineStruct.breaks);
     mocap_acc = zeros(3, numKnots);
-    p = 3;
-    temp     = bspline(knots,knots,P,p);
-    tempDerv = bsplineDerv(knots,knots,P,p,2);
+    temp     = ppval(splineStruct,splineStruct.breaks);
+    tempDerv = splineDerv(splineStruct, splineStruct.breaks, 2);
     for lv1=1:numKnots     
         % extract attitude
         q_ba = temp(4:7,lv1);
@@ -71,9 +69,9 @@ function [syncedData, offset] = syncTime(bSplineStruct, dataIMU, accThreshold)
     
     % Extract information from the b-spline fit at the required timesteps.
     p = 3;
-    temp      = bspline(t_synced,knots,P,p);
-    tempDerv  = bsplineDerv(t_synced,knots,P,p,1);
-    tempDerv2 = bsplineDerv(t_synced,knots,P,p,2);
+    temp      = ppval(splineStruct,t_synced);
+    tempDerv  = splineDerv(splineStruct, t_synced, 1);
+    tempDerv2 = splineDerv(splineStruct, t_synced, 2);
     
     IMU_acc_synced     = zeros(3,length(t_synced));
     IMU_gyr_synced     = zeros(3,length(t_synced));
