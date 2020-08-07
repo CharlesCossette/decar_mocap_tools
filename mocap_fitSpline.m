@@ -1,4 +1,4 @@
-function bSplineStruct = mocap_fitSpline(data, gapSize, visualBool)
+function splineMocap = mocap_fitSpline(data, gapSize, visualBool)
 % Fits a spline to all rigid bodies in 'data'.
 % Requires the bspline code from decar_utils.
 
@@ -14,7 +14,7 @@ if nargin < 3
 end
 
 % initialize struct to store the spline parameters of each rigid body.
-bSplineStruct = struct();
+splineMocap = struct();
 
 % iterate through each identified object
 rigidBodies = fieldnames(data);
@@ -38,24 +38,23 @@ for lv1=1:1:numel(rigidBodies)
         
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
-        [knots, P, ~] = bsplineInterp(waypoints,t,[],[],3);
+        pp = spline(t,waypoints);
         
         % Saving the computed B-spline fit.
-        bSplineStruct.(bodyName{1}).knots = knots;
-        bSplineStruct.(bodyName{1}).P = P;
+        splineMocap.(bodyName{1}) = pp;
         
         % Evaluating the performance of the fit, visually
         % user-defined trigger
         if visualBool
-            plotScript(data,t,knots,P,bodyName)
+            plotScript(data,t,splineMocap,bodyName)
         end
     end
 end
 end
 
-function plotScript(data,t,knots,P,bodyName)
-p=3;
-spline_points = bspline(t,knots,P,p);
+function plotScript(data,t,splineMocap,bodyName)
+
+spline_points = ppval(splineMocap.(bodyName{1}),t);
 
 figure
 subplot(3,1,1)

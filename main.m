@@ -37,13 +37,13 @@ for lv1=1:1:length(dataMocap.RigidBody002.t)
 end
 
 %% Fit a b-spline to the Mocap data
-spline = mocap_fitSpline(dataMocap,[],true)
+splineMocap = mocap_fitSpline(dataMocap,[],true)
 
 %% Extract the IMU data
 dataIMU = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
 
 %% Synchronize the Mocap and IMU data
-dataSynced = syncTime(spline.RigidBody002, dataIMU)
+dataSynced = syncTime(splineMocap.RigidBody002, dataIMU)
 
 %% Disregard IMU data within the time ranges where no ground truth was collected
 [dataSyncedCleaned, gapIndices] = deleteGaps(dataSynced, dataMocap.RigidBody.mocapGaps)
