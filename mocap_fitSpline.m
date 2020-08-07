@@ -29,6 +29,8 @@ for lv1=1:1:numel(rigidBodies)
         
         % remove waypoints with missing data
         t = data.(bodyName{1}).t';
+        t(:, ~any(waypoints,1)) = [];
+        waypoints(:, ~any(waypoints,1)) = [];
         
         % reduce the number of points to speed up the process of fitting a B-spline.
         t         = t(:,1:gapSize:end);
