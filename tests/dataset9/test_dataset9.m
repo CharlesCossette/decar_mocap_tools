@@ -24,10 +24,9 @@ dataIMU = IMU_csv2struct('2020_07_30_23_29_08_trial9_sensehat_180.csv')
 tic
 dataSynced = syncTime(splineMocap.RigidBody, dataIMU)
 toc
-%% Disregard IMU data within the time ranges where no ground truth was collected
-[dataSyncedCleaned, gapIndices] = deleteGaps(dataSynced, dataMocap.RigidBody.mocapGaps)
-dataSynced.gapIndices = gapIndices;
-
+%% Obtain indices of gaps in mocap data, and identified stationary periods
+dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.gapIntervals);
+dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.staticIntervals);
 %% Align the frames of the Mocap and IMU data to find an initial DCM
 tic
 dataAligned = alignFrames(dataSynced)

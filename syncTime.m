@@ -1,4 +1,4 @@
-function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
+function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -116,11 +116,11 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     legend('IMU Data','Mocap Data')
     title('Angular Velocity')
     %% Save the synchronized data
-    syncedData.t          = t_synced;
-    syncedData.accIMU     = IMU_acc_synced;
-    syncedData.omegaIMU   = IMU_gyr_synced;
-    syncedData.accMocap   = Mocap_acc_synced;
-    syncedData.omegaMocap = Mocap_omega_synced;
+    dataSynced.t          = t_synced;
+    dataSynced.accIMU     = IMU_acc_synced;
+    dataSynced.omegaIMU   = IMU_gyr_synced;
+    dataSynced.accMocap   = Mocap_acc_synced;
+    dataSynced.omegaMocap = Mocap_omega_synced;
     
 end
 function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)

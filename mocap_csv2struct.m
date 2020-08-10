@@ -247,7 +247,7 @@ for lv1=1:1:objectNum
     
     
     
-    S.(objectNames{lv1}).mocapGaps = gapIntervals;
+    S.(objectNames{lv1}).gapIntervals = gapIntervals;
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
