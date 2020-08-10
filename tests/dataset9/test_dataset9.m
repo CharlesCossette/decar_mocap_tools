@@ -33,7 +33,7 @@ dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
 
-[C_ms, biasAcc, biasGyr, dataCalibrated] = calibrateFrames(dataAligned)
+[C_ma, C_mg, biasAcc, biasGyr, dataCalibrated] = calibrateFrames(dataAligned)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.0001:dataCalibrated.t(end)).';
@@ -65,7 +65,7 @@ v_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
-g_a = [0;0;-9.792];
+g_a = [0;0;-9.80665];
 for lv1 = 1:N-1
     dt = t(lv1+1) - t(lv1);
     omega_ba_b = omegaMocap(:,lv1);
@@ -100,10 +100,10 @@ v_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
-g_a = [0;0;-9.792];
+g_a = [0;0;-9.80665];
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 0) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 30) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else
@@ -118,11 +118,11 @@ end
 phi_ba = DCM_TO_ROTVEC(C_ba);
 phi_ba_mocap = DCM_TO_ROTVEC(dataMocap.RigidBody.C_ba);
 figure
-plot3(r_zw_a(1,1:end), r_zw_a(2,1:end), r_zw_a(3,1:end),'linewidth',2)
+plot3(r_zw_a(1,1:6000), r_zw_a(2,1:6000), r_zw_a(3,1:6000),'linewidth',2)
 hold on
-plot3(dataMocap.RigidBody.r_zw_a(1,1:end),...
-      dataMocap.RigidBody.r_zw_a(2,1:end),...
-      dataMocap.RigidBody.r_zw_a(3,1:end),'linewidth',2);
+plot3(dataMocap.RigidBody.r_zw_a(1,1:3175),...
+      dataMocap.RigidBody.r_zw_a(2,1:3175),...
+      dataMocap.RigidBody.r_zw_a(3,1:3175),'linewidth',2);
 hold off
 axis vis3d
 axis equal
