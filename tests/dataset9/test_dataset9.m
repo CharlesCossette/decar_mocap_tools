@@ -4,6 +4,7 @@ clear; close all;
 %% Get IMU position
 r_imuz_b = mocap_getPointInBodyFrame('2020_08_04_180_calibration_trial7',...
                                      'RigidBody','Unlabeled4738')
+r_imuz_b(3) = r_imuz_b(3)
 %% Extract Mocap data
 dataMocap = mocap_csv2struct('2020_08_04_180_mocap_trial9.csv')
 
@@ -33,31 +34,14 @@ dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
 
-[C_ma, C_mg, biasAcc, biasGyr, dataCalibrated] = calibrateFrames(dataAligned)
+[results, dataCalibrated] = calibrateFrames(dataAligned,splineMocap.RigidBody)
 
 %% Dead Reckon Spline to Validate 
-t = (dataCalibrated.t(1):0.0001:dataCalibrated.t(end)).';
-temp      = ppval(splineMocap.RigidBody,t);
-tempDerv  = splineDerv(splineMocap.RigidBody, t, 1);
-tempDerv2 = splineDerv(splineMocap.RigidBody, t, 2);
+t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
 
 % Generate the data first
-accMocap   = zeros(3,length(t));
-omegaMocap = zeros(3,length(t));
 g_a = [0;0;-9.80665];
-for lv1=1:length(t)
-
-    % Mocap omega data
-    q_ba     = temp(4:7,lv1);
-    q_ba = q_ba./norm(q_ba);
-    q_ba_dot = tempDerv(4:7,lv1);
-    omega_ba_b = quatrate2omega(q_ba, q_ba_dot);
-    omegaMocap(:,lv1) = omega_ba_b;
-
-    % Mocap acceleration data
-    C_ba = quat2dcm(q_ba.');
-    accMocap(:,lv1) = C_ba*(tempDerv2(1:3,lv1) - g_a);
-end
+[accMocap, omegaMocap] = getFakeImuMocap(splineMocap.RigidBody,t,g_a);
 
 N = length(t);
 r_zw_a = zeros(3,N);
@@ -103,7 +87,7 @@ C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
 g_a = [0;0;-9.80665];
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 30) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 14) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else
@@ -142,6 +126,8 @@ plot(dataMocap.RigidBody.t, phi_ba_mocap(1,:))
 hold off
 grid on
 ylabel('$\phi_1$','interpreter','latex')
+legend('Dead-Reckoning','Ground Truth')
+title('Attitude Dead-reckoning Performance')
 
 subplot(3,1,2)
 plot(dataCalibrated.t, phi_ba(2,:))
