@@ -1,4 +1,4 @@
-function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
+function [C_ms, biasAcc_s, biasGyr_s, dataCalibrated] = calibrateFrames(dataSynced, x, TOL)
 % Find the DCM C_sm representing the rotation between the sensor frame of the 
 % IMU (F_s) and the body frame assigned by the Mocap system (F_m), as well
 % as the accelerometer and gyroscope biases.
@@ -25,9 +25,9 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
     % initialize 
     costFuncHist = [];
     phi = x(1:3);
-    biasAcc = x(4:6);
-    biasGyr = x(7:9);
-    C_sm = ROTVEC_TO_DCM(phi);
+    biasAcc_s = x(4:6);
+    biasGyr_s = x(7:9);
+    C_ms = ROTVEC_TO_DCM(phi);
     
     f = @(C, bAcc, bGyr) computeErrorVector(C, bAcc, bGyr, dataSynced);
 
@@ -36,16 +36,16 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
 %                 zeros(3*numGyr,3),        -repmat(eye(3),numGyr,1)];
 %                             
     iter = 0;
-    while norm(delta) > TOL
+    while norm(delta) > TOL && iter < 100
         % compute error vector
-        e = f(C_sm, biasAcc, biasGyr);
+        e = f(C_ms, biasAcc_s, biasGyr_s);
         
         % compute Jacobian
-        f_Csm = @(C) f(C, biasAcc, biasGyr);
-        A_phi = complexStepJacobianLie(f_Csm,C_sm,3,@CrossOperator,'direction','left');
+        f_Cms = @(C) f(C, biasAcc_s, biasGyr_s);
+        A_phi = complexStepJacobianLie(f_Cms,C_ms,3,@CrossOperator,'direction','left');
         
-        f_bias = @(b) f(C_sm, b(1:3), b(4:6));
-        A_bias_CS = complexStepJacobian(f_bias, [biasAcc;biasGyr]);
+        f_bias = @(b) f(C_ms, b(1:3), b(4:6));
+        A_bias_CS = complexStepJacobian(f_bias, [biasAcc_s;biasGyr_s]);
         
         A     = [A_phi, A_bias_CS];
         
@@ -61,70 +61,84 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
         
         % decompose
         del_phi     = delta(1:3);
-        del_biasAcc = delta(4:6);
-        del_biasGyr = delta(7:9);
+        del_biasAcc_s = delta(4:6);
+        del_biasGyr_s = delta(7:9);
         
         % Update
-        C_sm = ROTVEC_TO_DCM(del_phi).'*C_sm;
-        biasAcc = biasAcc + del_biasAcc;
-        biasGyr = biasGyr + del_biasGyr;
+        C_ms = ROTVEC_TO_DCM(del_phi).'*C_ms;
+        biasAcc_s = biasAcc_s + del_biasAcc_s;
+        biasGyr_s = biasGyr_s + del_biasGyr_s;
         
         iter = iter + 1;
     end
-
+    
+    % compute error vector
+    e = f(C_ms, biasAcc_s, biasGyr_s);
+    RMSE = sqrt((e.'*e)./length(dataSynced.t));
+    disp(['RMSE After Calibration: ' , num2str(RMSE)])
     %% Plotting to evaluate performance visually
-    accMocap_calibrated   = C_sm * dataSynced.accMocap - biasAcc;
-    omegaMocap_calibrated = C_sm * dataSynced.omegaMocap - biasGyr;
-
+    accIMU_calibrated = C_ms*(dataSynced.accIMU + biasAcc_s);
+    omegaIMU_calibrated = C_ms*(dataSynced.omegaIMU + biasGyr_s);
+    dataCalibrated = dataSynced;
+    dataCalibrated.accIMU = accIMU_calibrated;
+    dataCalibrated.omegaIMU = omegaIMU_calibrated;
+    
     % Plot calibrated data - accelerometers
     figure
-    sgtitle('Accelerometers')
+    sgtitle('Accelerometer')
     subplot(3,1,1)
-    plot(dataSynced.t, accMocap_calibrated(1,:))
+    plot(dataCalibrated.t, dataCalibrated.accIMU(1,:))
     hold on
-    plot(dataSynced.t, dataSynced.accIMU(1,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.accMocap(1,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\ddot{x}$ [$m/s^2$]', 'Interpreter', 'Latex')
-    legend('Calibrated Mocap Data', 'IMU Data')
+    legend('Calibrated IMU Data', 'Mocap Data')
     subplot(3,1,2)
-    plot(dataSynced.t, accMocap_calibrated(2,:))
+    plot(dataCalibrated.t, dataCalibrated.accIMU(2,:))
     hold on
-    plot(dataSynced.t, dataSynced.accIMU(2,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.accMocap(2,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\ddot{y}$ [$m/s^2$]', 'Interpreter', 'Latex')
     subplot(3,1,3)
-    plot(dataSynced.t, accMocap_calibrated(3,:))
+    plot(dataCalibrated.t, dataCalibrated.accIMU(3,:))
     hold on
-    plot(dataSynced.t, dataSynced.accIMU(3,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.accMocap(3,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\ddot{z}$ [$m/s^2$]', 'Interpreter', 'Latex')
 
     % Plot calibrated data - gyroscopes
     figure
-    sgtitle('Gyroscopes')
+    sgtitle('Gyroscope')
     subplot(3,1,1)
-    plot(dataSynced.t, omegaMocap_calibrated(1,:))
+    plot(dataCalibrated.t, dataCalibrated.omegaIMU(1,:))
     hold on
-    plot(dataSynced.t, dataSynced.omegaIMU(1,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.omegaMocap(1,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\omega_x$ [rad/$s$]', 'Interpreter', 'Latex')
-    legend('Calibrated Mocap Data', 'IMU Data')
+    legend('Calibrated IMU Data', 'Mocap Data')
+    
     subplot(3,1,2)
-    plot(dataSynced.t, omegaMocap_calibrated(2,:))
+    plot(dataCalibrated.t, dataCalibrated.omegaIMU(2,:))
     hold on
-    plot(dataSynced.t, dataSynced.omegaIMU(2,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.omegaMocap(2,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\omega_y$ [rad/$s$]', 'Interpreter', 'Latex')
     subplot(3,1,3)
-    plot(dataSynced.t, omegaMocap_calibrated(3,:))
+    plot(dataCalibrated.t, dataCalibrated.omegaIMU(3,:))
     hold on
-    plot(dataSynced.t, dataSynced.omegaIMU(3,:))
-    grid
+    plot(dataCalibrated.t, dataCalibrated.omegaMocap(3,:))
+    hold off
+    grid on
     xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
     ylabel('$\omega_z$ [rad/$s$]', 'Interpreter', 'Latex')
 
@@ -136,9 +150,9 @@ function [C_sm, biasAcc, biasGyr] = calibrateFrames(dataSynced, x, TOL)
     ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
-function output = computeErrorVector(C_sm, bAcc, bGyr, dataSynced)
+function output = computeErrorVector(C_ms, bAcc, bGyr, dataSynced)
     gaps = dataSynced.gapIndices;
-    error_accel = C_sm*dataSynced.accMocap(:,~gaps) - (dataSynced.accIMU(:,~gaps) + bAcc);
-    error_omega = C_sm*dataSynced.omegaMocap(:,~gaps) - (dataSynced.omegaIMU(:,~gaps) + bGyr);
+    error_accel = dataSynced.accMocap(:,~gaps) - C_ms*(dataSynced.accIMU(:,~gaps) + bAcc);
+    error_omega = dataSynced.omegaMocap(:,~gaps) - C_ms*(dataSynced.omegaIMU(:,~gaps) + bGyr);
     output = [error_accel(:);error_omega(:)];
 end

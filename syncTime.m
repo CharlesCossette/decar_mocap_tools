@@ -13,7 +13,7 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
-    g_a = [0;0;-9.80665]; % gravity 
+    g_a = [0;0;-9.792]; % gravity 
     
     knots = splineStruct.breaks;
     
@@ -68,7 +68,6 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     end
     
     % Extract information from the b-spline fit at the required timesteps.
-    p = 3;
     temp      = ppval(splineStruct,t_synced);
     tempDerv  = splineDerv(splineStruct, t_synced, 1);
     tempDerv2 = splineDerv(splineStruct, t_synced, 2);
@@ -78,16 +77,16 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     Mocap_acc_synced   = zeros(3,length(t_synced));
     Mocap_omega_synced = zeros(3,length(t_synced));
     for lv1=1:length(t_synced)
-        i = index_synced(lv1);
-        IMU_acc_synced(:,lv1) = dataIMU.accel(:,i);
-        IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,i);
+        indx = index_synced(lv1);
+        IMU_acc_synced(:,lv1) = dataIMU.accel(:,indx);
+        IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,indx);
 
         % Mocap omega data
         q_ba     = temp(4:7,lv1);
         q_ba = q_ba./norm(q_ba);
         q_ba_dot = tempDerv(4:7,lv1);
-        omega = quatrate2omega(q_ba, q_ba_dot);
-        Mocap_omega_synced(:,lv1) = omega;
+        omega_ba_b = quatrate2omega(q_ba, q_ba_dot);
+        Mocap_omega_synced(:,lv1) = omega_ba_b;
 
         % Mocap acceleration data
         C_ba = quat2dcm(q_ba.');

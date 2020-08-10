@@ -57,9 +57,9 @@ function [S, t0] = IMU_csv2struct(filename)
     S.accel = [data(:,indices(1)), data(:,indices(2)), data(:,indices(3))]';
     % ensure acceleration is in m/s^2
     if contains(headers(headerRow,indices(1)),'(g)') 
-        S.accel = S.accel.*9.81;        % g to m/s^2
+        S.accel = S.accel.*9.80665;        % g to m/s^2
     elseif contains(headers(headerRow,indices(1)),'(mg)') 
-        S.accel = S.accel./1000.*9.81;  % mg to m/s^2
+        S.accel = S.accel./1000.*9.80665;  % mg to m/s^2
     elseif ~contains(headers(headerRow,indices(1)),'(m/s^2)') && ~contains(headers(headerRow,indices(1)),'(m/s2)')
         warning('Unrecognized acceleration unit.')
     end

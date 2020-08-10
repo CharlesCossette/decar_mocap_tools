@@ -1,3 +1,6 @@
 [submodule "decar_utils"]
 	path = decar_utils
 	url = https://bitbucket.org/decargroup/decar_utils.git
+[submodule "decar_animate"]
+	path = decar_animate
+	url = https://bitbucket.org/decargroup/decar_animate.git

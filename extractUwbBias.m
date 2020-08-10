@@ -8,11 +8,9 @@ function varargout = extractUwbBias(splineMocap, dataUWB, r_pz_b, bodyNames, tag
     splineBodies = fieldnames(splineMocap);
     for lv1=1:1:length(splineBodies)
         fieldIter = splineBodies{lv1};
-        knots = splineMocap.(fieldIter).knots;
-        P     = splineMocap.(fieldIter).P;
         
         % Extract position data
-        temp = bspline(dataUWB.t,knots,P,3);
+        temp = ppval(splineMocap.(fieldIter), dataUWB.t);
         splineMocap.(fieldIter).r_zw_a = temp(1:3,:);
         
         % Extract attitude data

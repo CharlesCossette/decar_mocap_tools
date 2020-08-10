@@ -11,7 +11,7 @@ function  S = mocap_csv2struct(filename)
 % If frame b is the mocap body frame, frame a is the mocap "world" frame,
 % and frame a' is the new desired world frame where Z points up, we must
 % apply the following transformation
-%   C_ba' = C_ba * C_aa' 
+%   C_ba' = C_ba * C_aa'
 % where
 %   C_aa' = [0 1 0; 0 0 1; 1 0 0].
 % This transformation is equivalently done below in quaternions with
@@ -125,20 +125,20 @@ for lv1 = 1:numel(IDs)
         
         % AXES SWITCHED SO Z POINTS UP
         % Here we apply a frame rotation at the quaternion level. The
-        % formulas are taken from (1.49) of 
+        % formulas are taken from (1.49) of
         % Spacecraft Dynamics and Control: An Introduction
         % de Ruiter, Anton H.J. ;Damaren, Christopher J.; Forbes, James R.
         %
         % The reason we do this at the quaternion level, instead of
         % changing to DCMs, applying the transformation, and changing back
         % to quaternions, is that it introduces discontinuities in the
-        % quaternion trajectory due to their ambiguous nature. 
+        % quaternion trajectory due to their ambiguous nature.
         %
         % Notation: Quaternions are represented as q = [eta; epsilon] where
-        % eta is the vector part. 
+        % eta is the vector part.
         q_aaprime = 0.5*ones(4,1); % Quaternion corresponding to C_aa'
         S.(name).q_ba =  quatmul(q_ba_mocap, q_aaprime);
-
+        
         % REQUIRES AEROSPACE TOOLBOX
         S.(name).C_ba = quat2dcm(S.(name).q_ba.');
         
@@ -153,12 +153,21 @@ for lv1 = 1:numel(IDs)
         if norm(r_up_a - r_up_b) > 0.2
             % Then the Z-axis is not up! Assuming y axis is up.
             disp(['WARNING: We have detected that you have not set the ',...
-                  'Z-axis to be up/vertical on the body frame of ',name]);
+                'Z-axis to be up/vertical on the body frame of ',name]);
             disp(['This correction will be made automatically, assuming',...
-                 ' that the Y-axis was in fact the up/vertical one.']);
+                ' that the Y-axis was in fact the up/vertical one.']);
             q_bprimeb = [-0.5;0.5;0.5;0.5];
             S.(name).q_ba = quatmul(q_bprimeb,S.(name).q_ba);
             S.(name).C_ba = quat2dcm(S.(name).q_ba.');
+            
+            % Repeat the test again, make sure the problem is fixed.
+            for lv2 = 1:size(r_up_b,2)
+                r_up_b(:,lv2) = S.(name).C_ba(:,:,lv2)*r_up_a;
+            end
+            r_up_b = mean(r_up_b,2,'omitnan');
+            if norm(r_up_a - r_up_b) > 0.2
+                error('Program error!') 
+            end
         end
         
     end
@@ -175,11 +184,13 @@ end
 
 % User-defined parameters
 % TODO: 1) decide whether it's worth having these as inputs to the function
-thresDiff = 1; % the maximum gap in seconds in which two sets of missing 
-               % data are considered to belong to the same time range
-bufferSize = 1; % the size of the gap before and after missing data to be 
-                % considered as missing data as well. Defined in seconds.
+thresDiff = 1; % the maximum gap in seconds in which two sets of missing
+% data are considered to belong to the same time range
+bufferSize = 1; % the size of the gap before and after missing data to be
+% considered as missing data as well. Defined in seconds.
 
+% TODO: some gaps not being detected (i.e. gap of length 1, see
+% test_dataset9)
 objectNames = fieldnames(S);
 objectNum   = length(objectNames);
 for lv1=1:1:objectNum
@@ -211,14 +222,14 @@ for lv1=1:1:objectNum
             for lv2=1:1:length(tMissingIndices)-1
                 % check if solo point or within a range of data
                 if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
-
+                    
                     % compute lower limit
                     lower = tMissing(tMissingIndices(lv2)) - bufferSize;
                     if lower < 0; lower = 0; end
-
+                    
                     % compute upperlimit
                     upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
-
+                    
                     % save range
                     if isempty(rangeIgnore)
                         rangeIgnore = [rangeIgnore, [lower; upper]];
@@ -254,9 +265,9 @@ end
 
 function q_31 = quatmul(q_32, q_21)
 %QUATMUL A vectorized implementation of quaternion multiplication. The
-% formulas are taken from (1.49) of Spacecraft Dynamics and Control: 
+% formulas are taken from (1.49) of Spacecraft Dynamics and Control:
 % An Introduction
-% de Ruiter, Anton H.J. ;Damaren, Christopher J.; Forbes, James R. 
+% de Ruiter, Anton H.J. ;Damaren, Christopher J.; Forbes, James R.
 %
 % If q_21 is the quaternion parameterization of C_21, then this function
 % returns q_31 where C_31 = C_32*C_21;
@@ -266,21 +277,21 @@ function q_31 = quatmul(q_32, q_21)
 % reasons, the underlying operations are equivalent.
 %
 % Allows either q_32 to be a batch of quaternions, or q_21, but not both.
-    if size(q_32,2) > 1
-        etas_32 = q_32(1,:);
-        eps_32 = q_32(2:4,:); 
-        eps_21 = q_21(2:4); 
-        eta_21 = q_21(1);
-        etas_31 = eta_21*etas_32 - eps_21.'*eps_32; % Formulas from above.
-        eps_31 = etas_32.*eps_21 + eta_21*eps_32 + CrossOperator(eps_21)*eps_32;
-        q_31 = [etas_31;eps_31];
-    elseif size(q_21,2) > 1
-        etas_32 = q_32(1);
-        eps_32 = q_32(2:4); 
-        eps_21 = q_21(2:4,:); 
-        eta_21 = q_21(1,:);
-        etas_31 = eta_21*etas_32 - eps_32.'*eps_21; % Formulas from above.
-        eps_31 = etas_32.*eps_21 + eps_32*eta_21 - CrossOperator(eps_32)*eps_21;
-        q_31 = [etas_31;eps_31];
-    end
+if size(q_32,2) > 1
+    etas_32 = q_32(1,:);
+    eps_32 = q_32(2:4,:);
+    eps_21 = q_21(2:4);
+    eta_21 = q_21(1);
+    etas_31 = eta_21*etas_32 - eps_21.'*eps_32; % Formulas from above.
+    eps_31 = etas_32.*eps_21 + eta_21*eps_32 + CrossOperator(eps_21)*eps_32;
+    q_31 = [etas_31;eps_31];
+elseif size(q_21,2) > 1
+    etas_32 = q_32(1);
+    eps_32 = q_32(2:4);
+    eps_21 = q_21(2:4,:);
+    eta_21 = q_21(1,:);
+    etas_31 = eta_21*etas_32 - eps_32.'*eps_21; % Formulas from above.
+    eps_31 = etas_32.*eps_21 + eps_32*eta_21 - CrossOperator(eps_32)*eps_21;
+    q_31 = [etas_31;eps_31];
+end
 end
