@@ -14,7 +14,9 @@ function  S = mocap_csv2struct(filename)
 %   C_ba' = C_ba * C_aa' 
 % where
 %   C_aa' = [0 1 0; 0 0 1; 1 0 0].
-% This transformation is equivalently done below in quaternions.
+% This transformation is equivalently done below in quaternions with
+%   q_aa' = [0.5 0.5 0.5 0.5].
+% We use the SCALAR FIRST convention for quaternions.
 %
 % WARNING: Requires MATLAB 2019a or later with the AEROSPACE TOOLBOX.
 %
@@ -134,22 +136,37 @@ for lv1 = 1:numel(IDs)
         %
         % Notation: Quaternions are represented as q = [eta; epsilon] where
         % eta is the vector part. 
-        etas_old = q_ba_mocap(1,:);
-        eps_old = q_ba_mocap(2:4,:);
-        eps_switch = 0.5*ones(3,1);
-        eta_switch = 0.5;
-        etas_new = eta_switch*etas_old - eps_switch.'*eps_old; % Formulas from above.
-        eps_new = etas_old.*eps_switch + eta_switch*eps_old + CrossOperator(eps_switch)*eps_old;
-        S.(name).q_ba = [etas_new;eps_new];
-        
+        q_aaprime = 0.5*ones(4,1); % Quaternion corresponding to C_aa'
+        S.(name).q_ba =  quatmul(q_ba_mocap, q_aaprime);
+
         % REQUIRES AEROSPACE TOOLBOX
         S.(name).C_ba = quat2dcm(S.(name).q_ba.');
+        
+        % Now, we will check if the silly user set the mocap body frame to
+        % have a y-axis be up. Fix it for them if they did that. Shame!
+        r_up_a = [0;0;1];
+        r_up_b = zeros(3,50);
+        for lv2 = 1:size(r_up_b,2)
+            r_up_b(:,lv2) = S.(name).C_ba(:,:,lv2)*r_up_a;
+        end
+        r_up_b = mean(r_up_b,2,'omitnan');
+        if norm(r_up_a - r_up_b) > 0.2
+            % Then the Z-axis is not up! Assuming y axis is up.
+            disp(['WARNING: We have detected that you have not set the ',...
+                  'Z-axis to be up/vertical on the body frame of ',name]);
+            disp(['This correction will be made automatically, assuming',...
+                 ' that the Y-axis was in fact the up/vertical one.']);
+            q_bprimeb = [-0.5;0.5;0.5;0.5];
+            S.(name).q_ba = quatmul(q_bprimeb,S.(name).q_ba);
+        end
+        
     end
     
     % AXES SWITCHED SO Z POINTS UP
-    S.(name).r_zw_a = [data(:,pos_z_col).';
-                       data(:,pos_x_col).';
-                       data(:,pos_y_col).'];
+    C_aaprime = [0 1 0; 0 0 1; 1 0 0];
+    S.(name).r_zw_a = C_aaprime.'*[data(:,pos_x_col).';
+                                   data(:,pos_y_col).';
+                                   data(:,pos_z_col).'];
 end
 
 %% Step 4 - For each ID, extract time range where the object was outside
@@ -234,14 +251,35 @@ catch
 end
 end
 
-function x = vee(X)
-% The "uncross" operator.
-x = [-X(2,3);X(1,3);-X(1,2)];
-end
-
-function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)
-eta = q_ba(1);
-epsilon = q_ba(2:4);
-S = [-2*epsilon, 2*(eta*eye(3) - CrossOperator(epsilon))];
-omega_ba_b = S*q_ba_dot;
+function q_31 = quatmul(q_32, q_21)
+%QUATMUL A vectorized implementation of quaternion multiplication. The
+% formulas are taken from (1.49) of Spacecraft Dynamics and Control: 
+% An Introduction
+% de Ruiter, Anton H.J. ;Damaren, Christopher J.; Forbes, James R. 
+%
+% If q_21 is the quaternion parameterization of C_21, then this function
+% returns q_31 where C_31 = C_32*C_21;
+%
+% We use slightly different formulas depending on which of q_32, q_21 are
+% sent as the list of quaternions. This is strictly for vectorization
+% reasons, the underlying operations are equivalent.
+%
+% Allows either q_32 to be a batch of quaternions, or q_21, but not both.
+    if size(q_32,2) > 1
+        etas_32 = q_32(1,:);
+        eps_32 = q_32(2:4,:); 
+        eps_21 = q_21(2:4); 
+        eta_21 = q_21(1);
+        etas_31 = eta_21*etas_32 - eps_21.'*eps_32; % Formulas from above.
+        eps_31 = etas_32.*eps_21 + eta_21*eps_32 + CrossOperator(eps_21)*eps_32;
+        q_31 = [etas_31;eps_31];
+    elseif size(q_21,2) > 1
+        etas_32 = q_32(1);
+        eps_32 = q_32(2:4); 
+        eps_21 = q_21(2:4,:); 
+        eta_21 = q_21(1,:);
+        etas_31 = eta_21*etas_32 - eps_32.'*eps_21; % Formulas from above.
+        eps_31 = etas_32.*eps_21 + eps_32*eta_21 - CrossOperator(eps_32)*eps_21;
+        q_31 = [etas_31;eps_31];
+    end
 end
