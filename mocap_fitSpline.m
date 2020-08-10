@@ -29,19 +29,13 @@ for lv1=1:1:numel(rigidBodies)
             dataMocap.(bodyName{1}).q_ba];
         
         % remove waypoints with missing data
-         t = t(:, any(waypoints,1));
-         waypoints = waypoints(:, any(waypoints,1));
-%         waypoints = interp1(t_no_gaps,waypoints_no_gaps.',t).';
-%         
+        t = t(:, any(waypoints,1));
+        waypoints = waypoints(:, any(waypoints,1));
+      
         % reduce the number of points to speed up the process of fitting a B-spline.
         t         = t(:,1:gapSize:end);
         waypoints = waypoints(:,1:gapSize:end);
-%         waypoints_decimated = zeros(7,ceil(size(waypoints,2)/gapSize));
-%         for lv2 = 1:size(waypoints,1)
-%             waypoints_decimated(lv2,:) = decimate(waypoints(lv2,:).',gapSize);
-%         end
-%         waypoints = waypoints_decimated;
-        
+
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
         %pp = spline(t,waypoints);
