@@ -48,7 +48,7 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
         % Strip duplicates again
         C_all = round(C_all); % round to eliminate numerical errors
         C_all_rows = mat3D2rows(C_all);
-        C_list_rows(all(C_list_rows == 0,2),:) = []; % Remove any that are all zeros.
+        C_all_rows(all(C_all_rows == 0,2),:) = []; % Remove any that are all zeros.
         C_all_rows = unique(C_all_rows,'rows');
         C_all = rows2mat3D(C_all_rows);
     end
@@ -62,8 +62,8 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
     % for them to be using different frames.
     J_best_accel = inf;
     J_best_gyro = inf;
-    C_am_best = eye(3); % C_am is a dcm from mocap body frame to accel frame.
-    C_gm_best = eye(3); % C_gm is a dcm from mocap body frame to gyro frame.
+    C_ma_best = eye(3); % C_am is a dcm from mocap body frame to accel frame.
+    C_mg_best = eye(3); % C_gm is a dcm from mocap body frame to gyro frame.
     for lv1 = 1:size(C_all,3)
         C = C_all(:,:,lv1);
         
@@ -71,7 +71,7 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
         e_accel = computeErrorAccel(C,dataSynced);
         J_accel = 0.5*(e_accel.'*e_accel);
         if J_accel < J_best_accel
-            C_am_best = C;
+            C_ma_best = C;
             J_best_accel = J_accel;
         end
         
@@ -79,26 +79,26 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
         e_gyro = computeErrorGyro(C,dataSynced);
         J_gyro = 0.5*(e_gyro.'*e_gyro);
         if J_gyro < J_best_gyro
-            C_gm_best = C;
+            C_mg_best = C;
             J_best_gyro = J_gyro;
         end
     end
     
-    if any(C_am_best ~= C_gm_best,'all')
+    if any(C_ma_best ~= C_mg_best,'all')
         disp('Different accel/gyro frames detected!')
         disp('Gyro will be transformed to the same frame as accel.')
         
     end
     disp('Best fit accelerometer DCM:')
-    C_am_best
+    C_ma_best
     disp('Best fit gyroscope DCM:')
-    C_gm_best
+    C_mg_best
     
     dataAligned = dataSynced;
-    dataAligned.accIMU = C_am_best.'*dataSynced.accIMU;
-    dataAligned.omegaIMU = C_gm_best.'*dataSynced.omegaIMU;
-    C_am = C_am_best;
-    C_gm = C_gm_best;
+    dataAligned.accIMU = C_ma_best*dataSynced.accIMU;
+    dataAligned.omegaIMU = C_mg_best*dataSynced.omegaIMU;
+    C_am = C_ma_best;
+    C_gm = C_mg_best;
         
 end
 
@@ -125,13 +125,13 @@ function Cs = rows2mat3D(C_rows)
     end
 end
 
-function output = computeErrorAccel(C_sm,dataSynced)
+function output = computeErrorAccel(C_ms,dataSynced)
     gaps = dataSynced.gapIndices;
-    error_accel = C_sm*dataSynced.accMocap(:,~gaps) - dataSynced.accIMU(:,~gaps);
-    output = [error_accel(:)];
+    error_accel = dataSynced.accMocap(:,~gaps) - C_ms*dataSynced.accIMU(:,~gaps);
+    output = error_accel(:);
 end
-function output = computeErrorGyro(C_sm,dataSynced)
+function output = computeErrorGyro(C_ms,dataSynced)
     gaps = dataSynced.gapIndices;
-    error_omega = C_sm*dataSynced.omegaMocap(:,~gaps) - dataSynced.omegaIMU(:,~gaps);
-    output = [error_omega(:)];
+    error_omega = dataSynced.omegaMocap(:,~gaps) - C_ms*dataSynced.omegaIMU(:,~gaps);
+    output = error_omega(:);
 end

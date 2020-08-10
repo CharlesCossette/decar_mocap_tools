@@ -1,4 +1,4 @@
-function splineMocap = mocap_fitSpline(data, gapSize, visualBool)
+function splineMocap = mocap_fitSpline(dataMocap, gapSize, visualBool)
 % Fits a spline to all rigid bodies in 'data'.
 % Requires the bspline code from decar_utils.
 
@@ -6,7 +6,7 @@ if nargin < 1
     error('Data required');
 end
 if nargin < 2 || isempty(gapSize)
-    gapSize = 5; % set the default sampling frequency for spline
+    gapSize = 1; % set the default sampling frequency for spline
     % fitting to be 1 sample per 10 recorded.
 end
 if nargin < 3
@@ -17,28 +17,35 @@ end
 splineMocap = struct();
 
 % iterate through each identified object
-rigidBodies = fieldnames(data);
+rigidBodies = fieldnames(dataMocap);
 for lv1=1:1:numel(rigidBodies)
     bodyName = rigidBodies(lv1);
     
     % ensure it is actually a rigid body and not a marker
-    if strcmp(data.(bodyName{1}).type, 'Rigid Body')
+    if strcmp(dataMocap.(bodyName{1}).type, 'Rigid Body')
         
-        waypoints = [data.(bodyName{1}).r_zw_a;
-            data.(bodyName{1}).q_ba];
+        t = dataMocap.(bodyName{1}).t';
+        waypoints = [dataMocap.(bodyName{1}).r_zw_a;
+            dataMocap.(bodyName{1}).q_ba];
         
         % remove waypoints with missing data
-        t = data.(bodyName{1}).t';
-        t(:, ~any(waypoints,1)) = [];
-        waypoints(:, ~any(waypoints,1)) = [];
-        
+         t = t(:, any(waypoints,1));
+         waypoints = waypoints(:, any(waypoints,1));
+%         waypoints = interp1(t_no_gaps,waypoints_no_gaps.',t).';
+%         
         % reduce the number of points to speed up the process of fitting a B-spline.
         t         = t(:,1:gapSize:end);
         waypoints = waypoints(:,1:gapSize:end);
+%         waypoints_decimated = zeros(7,ceil(size(waypoints,2)/gapSize));
+%         for lv2 = 1:size(waypoints,1)
+%             waypoints_decimated(lv2,:) = decimate(waypoints(lv2,:).',gapSize);
+%         end
+%         waypoints = waypoints_decimated;
         
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
-        pp = spline(t,waypoints);
+        %pp = spline(t,waypoints);
+        pp = csaps(t,waypoints,0.9999995);
         
         % Saving the computed B-spline fit.
         splineMocap.(bodyName{1}) = pp;
@@ -46,7 +53,7 @@ for lv1=1:1:numel(rigidBodies)
         % Evaluating the performance of the fit, visually
         % user-defined trigger
         if visualBool
-            plotScript(data,t,splineMocap,bodyName)
+            plotScript(dataMocap,t,splineMocap,bodyName)
         end
     end
 end

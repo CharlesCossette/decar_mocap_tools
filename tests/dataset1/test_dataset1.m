@@ -34,4 +34,4 @@ dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
 
-[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned)
+[C_ms, biasAcc, biasGyr] = calibrateFrames(dataAligned)
