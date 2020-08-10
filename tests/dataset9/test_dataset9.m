@@ -1,10 +1,9 @@
 % An example of how to use the Mocap tools.
 
-clear; close all;
+close all;
 %% Get IMU position
 r_imuz_b = mocap_getPointInBodyFrame('2020_08_04_180_calibration_trial7',...
                                      'RigidBody','Unlabeled4738')
-r_imuz_b(3) = r_imuz_b(3)
 %% Extract Mocap data
 dataMocap = mocap_csv2struct('2020_08_04_180_mocap_trial9.csv')
 
@@ -40,7 +39,7 @@ toc
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
 
 % Generate the data first
-g_a = [0;0;-9.80665];
+g_a = results.g_a;
 [accMocap, omegaMocap] = getFakeImuMocap(splineMocap.RigidBody,t,g_a);
 
 N = length(t);
@@ -49,7 +48,7 @@ v_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
-g_a = [0;0;-9.80665];
+
 for lv1 = 1:N-1
     dt = t(lv1+1) - t(lv1);
     omega_ba_b = omegaMocap(:,lv1);
@@ -84,7 +83,7 @@ v_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
-g_a = [0;0;-9.80665];
+g_a = results.g_a;
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
     if (dataCalibrated.t(lv1) > 14) && (dataCalibrated.t(lv1) < 140)

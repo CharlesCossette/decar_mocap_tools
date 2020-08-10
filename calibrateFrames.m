@@ -25,38 +25,43 @@ function [results, dataCalibrated] = calibrateFrames(dataSynced, splineStruct, x
     % initialize 
     costFuncHist = [];
     phi = x(1:3);
-    biasAcc_a = x(4:6);
-    biasGyr_g = x(7:9);
+    bias_a = x(4:6);
+    bias_g = x(7:9);
     C_ma = ROTVEC_TO_DCM(phi);
     C_mg = ROTVEC_TO_DCM(phi);
     scale_a = [1;1;1];
     scale_g = [1;1;1];
+    skew_a = [0;0;0];
+    skew_g = [0;0;0];
     C_ae = eye(3);
                             
     iter = 0;
     while norm(delta) > TOL && iter < 100
         % compute error vector
-        e = errorFull(C_ma, C_mg, biasAcc_a, biasGyr_g, scale_a, scale_g, C_ae, dataSynced);
+        e = errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced);
         
         % compute Jacobians
-        f_Cma = @(C) errorFull(C, C_mg, biasAcc_a, biasGyr_g, scale_a, scale_g, C_ae, dataSynced);
+        f_Cma = @(C) errorFull(C, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced);
         A_phia = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
         
-        f_Cmg = @(C) errorFull(C_ma, C, biasAcc_a, biasGyr_g, scale_a, scale_g, C_ae, dataSynced);
+        f_Cmg = @(C) errorFull(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced);
         A_phig = complexStepJacobianLie(f_Cmg,C_ma,3,@CrossOperator,'direction','left');
         
         %f_bias = @(b) errorFullStaticOnly(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, dataSynced);
-        f_bias = @(b) errorFull(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, C_ae, dataSynced);
-        A_bias = complexStepJacobian(f_bias, [biasAcc_a;biasGyr_g]);
+        f_bias = @(b) errorFull(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced);
+        A_bias = complexStepJacobian(f_bias, [bias_a;bias_g]);
         
-        f_scale = @(s) errorFull(C_ma, C_mg, biasAcc_a, biasGyr_g, s(1:3), s(4:6), C_ae, dataSynced);
-        A_scale = complexStepJacobian(f_scale, [biasAcc_a;biasGyr_g]);
+        f_scale = @(s) errorFull(C_ma, C_mg, bias_a, bias_g, s(1:3), s(4:6), skew_a, skew_g, C_ae, dataSynced);
+        A_scale = complexStepJacobian(f_scale, [bias_a;bias_g]);
         
-        f_Cae = @(C) errorFull(C_ma, C_mg, biasAcc_a, biasGyr_g, scale_a, scale_g, C, dataSynced);
+        f_skew = @(s) errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, s(1:3), s(4:6), C_ae, dataSynced);
+        A_skew = complexStepJacobian(f_skew, [skew_a;skew_g]);
+        
+        f_Cae = @(C) errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C, dataSynced);
         f_phiae = @(phi) f_Cae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phiae = complexStepJacobian(f_phiae,[0;0]);
         
-        A     = [A_phia, A_phig, A_bias, A_scale, A_phiae];
+        A     = [A_phia, A_phig, A_bias, A_scale, A_skew, A_phiae];
         
         cost = 0.5*(e.'*e)
         costFuncHist = [costFuncHist; cost];
@@ -75,30 +80,48 @@ function [results, dataCalibrated] = calibrateFrames(dataSynced, splineStruct, x
         del_biasGyr_s = delta(10:12);
         del_scale_a = delta(13:15);
         del_scale_g = delta(16:18);
-        del_phiae = delta(19:20);
+        del_skew_a = delta(19:21);
+        del_skew_g = delta(22:24);
+        del_phiae = delta(25:26);
         
         % Update
         C_ma = ROTVEC_TO_DCM(del_phia).'*C_ma;
         C_mg = ROTVEC_TO_DCM(del_phig).'*C_mg;
-        biasAcc_a = biasAcc_a + del_biasAcc_s;
-        biasGyr_g = biasGyr_g + del_biasGyr_s;
+        bias_a = bias_a + del_biasAcc_s;
+        bias_g = bias_g + del_biasGyr_s;
         scale_a = scale_a + del_scale_a;
         scale_g = scale_g + del_scale_g;
+        skew_a = skew_a + del_skew_a;
+        skew_g = skew_g + del_skew_g;
         C_ae = ROTVEC_TO_DCM([del_phiae;0]).'*C_ae;
         
         iter = iter + 1;
     end
     
     % compute error vector
-    e = errorFull(C_ma, C_mg, biasAcc_a, biasGyr_g, scale_a, scale_g, C_ae, dataSynced);
+    e = errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced);
     RMSE = sqrt((e.'*e)./length(dataSynced.t));
     disp(['RMSE After Calibration: ' , num2str(RMSE)])
     
     %% Results and Output
-    accIMU_calibrated = C_ma*diag(scale_a)*(dataSynced.accIMU + biasAcc_a);
-    omegaIMU_calibrated = C_mg*diag(scale_g)*(dataSynced.omegaIMU + biasGyr_g);
+    % Calibrated Accelerometer measurements
+    T_skew = eye(3);
+    T_skew(1,2) = -skew_a(3);
+    T_skew(1,3) = skew_a(2);
+    T_skew(2,3) = -skew_a(1);
+    accIMU_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU + bias_a);
+    
+    % Calibrated Gyroscope measurements
+    T_skew = eye(3);
+    T_skew(1,2) = -skew_g(3);
+    T_skew(1,3) = skew_g(2);
+    T_skew(2,3) = -skew_g(1);
+    omegaIMU_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU + bias_g);
+    
+    % Calibrated ground truth accel/gyro measurements.
     g_e = [0;0;-9.80665];
     [mocap_acc, mocap_gyro] = getFakeImuMocap(splineStruct,dataSynced.t, C_ae*g_e);
+    
     dataCalibrated.t = dataSynced.t;
     dataCalibrated.accMocap = mocap_acc;
     dataCalibrated.omegaMocap = mocap_gyro;
@@ -107,10 +130,12 @@ function [results, dataCalibrated] = calibrateFrames(dataSynced, splineStruct, x
     
     results.C_ms_accel = C_ma;
     results.C_ms_gyro = C_mg;
-    results.bias_s_accel = biasAcc_a;
-    results.bias_s_gyro = biasGyr_g;
+    results.bias_s_accel = bias_a;
+    results.bias_s_gyro = bias_g;
     results.scale_s_accel = scale_a;
     results.scale_s_gyro = scale_g;
+    results.skew_s_accel = skew_a;
+    results.skew_s_gyro = skew_g;
     results.g_a = C_ae*g_e;
     
     %% Plotting to evaluate performance visually
@@ -182,12 +207,12 @@ function [results, dataCalibrated] = calibrateFrames(dataSynced, splineStruct, x
     
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function output = errorFull(C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, C_ae, dataSynced)
-    ea = errorAccel(C_ma, bAcc, scale_a, C_ae, dataSynced);
-    eg = errorGyro(C_mg, bGyr, scale_g, dataSynced);
+function output = errorFull(C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced)
+    ea = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced);
+    eg = errorGyro(C_mg, bGyr, scale_g, skew_g, dataSynced);
     output = [ea;eg];
 end
-function output = errorAccel(C_ma, bAcc, scale_a, C_ae, dataSynced)
+function output = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced)
     g_e = [0;0;-9.80665];
     g_a = C_ae*g_e;
     mocap_accel = zeros(3, length(dataSynced.t));
@@ -195,14 +220,22 @@ function output = errorAccel(C_ma, bAcc, scale_a, C_ae, dataSynced)
         mocap_accel(:,lv1) = dataSynced.C_ba(:,:,lv1)*(dataSynced.a_zwa_a(:,lv1) - g_a);
     end
     isGap = dataSynced.gapIndices;
+    T_skew = eye(3);
+    T_skew(1,2) = -skew_a(3);
+    T_skew(1,3) = skew_a(2);
+    T_skew(2,3) = -skew_a(1);
     error_accel = mocap_accel(:,~isGap) ...
-                  - C_ma*diag(scale_a)*(dataSynced.accIMU(:,~isGap) + bAcc);
+                  - C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU(:,~isGap) + bAcc);
     output = error_accel(:);
 end
-function output = errorGyro(C_mg, bGyr, scale_g, dataSynced)
+function output = errorGyro(C_mg, bGyr, scale_g, skew_g, dataSynced)
     isGap = dataSynced.gapIndices;
+    T_skew = eye(3);
+    T_skew(1,2) = -skew_g(3);
+    T_skew(1,3) = skew_g(2);
+    T_skew(2,3) = -skew_g(1);
     error_gyro = dataSynced.omegaMocap(:,~isGap) ...
-                  - C_mg*diag(scale_g)*(dataSynced.omegaIMU(:,~isGap) + bGyr);
+                  - C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU(:,~isGap) + bGyr);
     output = error_gyro(:);
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -33,7 +33,7 @@ dataMocap.RigidBody.type = 'Rigid Body';
 dataMocap.RigidBody.C_ba = C_ba;
 % TODO: Unfortunately there's some discontinuities in the quaternion data
 % from simulation! 
-dataMocap.RigidBody.q_ba = dcm2quat(C_ba).';
+dataMocap.RigidBody.q_ba = smoothdcm2quat(C_ba).';
 dataMocap.RigidBody.mocapGaps = [];
 
 % For the IMU truth is again sampled but at higher frequency. 
