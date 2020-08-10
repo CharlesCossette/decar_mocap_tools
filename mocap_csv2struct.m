@@ -205,52 +205,73 @@ for lv1=1:1:objectNum
     end
     
     % Find timesteps where there is missing data.
-    tMissing = t(:, ~any(waypointsIter,1));
+    isMissing = ~any(waypointsIter,1);
+    gapIntervals = getIntervalsFromIndices(t, isMissing, thresDiff, bufferSize);
+%     tMissing = t(:, isMissing);
+%     
+%     gapIntervals = [];
+%     if ~isempty(tMissing)
+%         % Find the time difference between the datapoints with missing data.
+%         tMissingDiff = [tMissing(1), diff(tMissing)];
+%         
+%         % Find the indices of datapoints where the time difference exceeds a
+%         % threshold.
+%         tMissingIndices = find(tMissingDiff>thresDiff);
+%         if ~isempty(tMissingIndices)
+%             if tMissingIndices(end) ~= length(tMissing)
+%                 tMissingIndices = [tMissingIndices, length(tMissing)];
+%             end
+%             for lv2=1:1:length(tMissingIndices)-1
+%                 % check if solo point or within a range of data
+%                 if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
+%                     
+%                     % compute lower limit
+%                     lower = tMissing(tMissingIndices(lv2)) - bufferSize;
+%                     if lower < 0; lower = 0; end
+%                     
+%                     % compute upperlimit
+%                     upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
+%                     
+%                     % save range
+%                     if isempty(gapIntervals)
+%                         gapIntervals = [gapIntervals, [lower; upper]];
+%                     elseif lower > gapIntervals(2,end)
+%                         gapIntervals = [gapIntervals, [lower; upper]];
+%                     else
+%                         gapIntervals(2,end) = upper;
+%                     end
+%                 end
+%             end
+%         end
+%     end
     
-    rangeIgnore = [];
-    if ~isempty(tMissing)
-        % Find the time difference between the datapoints with missing data.
-        tMissingDiff = [tMissing(1), diff(tMissing)];
-        
-        % Find the indices of datapoints where the time difference exceeds a
-        % threshold.
-        tMissingIndices = find(tMissingDiff>thresDiff);
-        if ~isempty(tMissingIndices)
-            if tMissingIndices(end) ~= length(tMissing)
-                tMissingIndices = [tMissingIndices, length(tMissing)];
-            end
-            for lv2=1:1:length(tMissingIndices)-1
-                % check if solo point or within a range of data
-                if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
-                    
-                    % compute lower limit
-                    lower = tMissing(tMissingIndices(lv2)) - bufferSize;
-                    if lower < 0; lower = 0; end
-                    
-                    % compute upperlimit
-                    upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
-                    
-                    % save range
-                    if isempty(rangeIgnore)
-                        rangeIgnore = [rangeIgnore, [lower; upper]];
-                    elseif lower > rangeIgnore(2,end)
-                        rangeIgnore = [rangeIgnore, [lower; upper]];
-                    else
-                        rangeIgnore(2,end) = upper;
-                    end
-                end
-            end
-        end
-    end
     
     
-    
-    S.(objectNames{lv1}).mocapGaps = rangeIgnore;
+    S.(objectNames{lv1}).mocapGaps = gapIntervals;
 end
 
+%% Step 5 - For each ID, extract time range where the object is stationary.
 
+objectNames = fieldnames(S);
+objectNum   = length(objectNames);
+detectInterval = 1; % In seconds
+detectIndices = detectInterval/2*120;
+covThreshold = 0.001^2;
 
-
+for lv1=1:1:objectNum
+    object = S.(objectNames{lv1});
+    t      = object.t';
+    isStatic = false(size(t));
+    for lv2 = detectIndices:(length(t) - detectIndices)
+        pos_cov = cov(object.r_zw_a(:,lv2 - detectIndices +1: lv2 + detectIndices).');
+        if norm(diag(pos_cov)) < covThreshold
+            % Then it is static
+            isStatic(lv2) = true;
+        end
+    end
+    staticIntervals = getIntervalsFromIndices(t,isStatic,0.4,0);
+    S.(objectNames{lv1}).staticIntervals = staticIntervals;
+end
 end
 function y = stringincell(x,str)
 % Checks if contents in a cell "x" match the string "str". Using a
@@ -293,5 +314,45 @@ elseif size(q_21,2) > 1
     etas_31 = eta_21*etas_32 - eps_32.'*eps_21; % Formulas from above.
     eps_31 = etas_32.*eps_21 + eps_32*eta_21 - CrossOperator(eps_32)*eps_21;
     q_31 = [etas_31;eps_31];
+end
+end
+
+function intervals = getIntervalsFromIndices(t,indices,thresDiff,bufferSize)
+
+tMissing = t(:, indices);
+intervals = [];
+if ~isempty(tMissing)
+    % Find the time difference between the datapoints with missing data.
+    tMissingDiff = [tMissing(1), diff(tMissing)];
+    
+    % Find the indices of datapoints where the time difference exceeds a
+    % threshold.
+    tMissingIndices = find(tMissingDiff>thresDiff);
+    if ~isempty(tMissingIndices)
+        if tMissingIndices(end) ~= length(tMissing)
+            tMissingIndices = [tMissingIndices, length(tMissing)];
+        end
+        for lv2=1:1:length(tMissingIndices)-1
+            % check if solo point or within a range of data
+            if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
+                
+                % compute lower limit
+                lower = tMissing(tMissingIndices(lv2)) - bufferSize;
+                if lower < 0; lower = 0; end
+                
+                % compute upperlimit
+                upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
+                
+                % save range
+                if isempty(intervals)
+                    intervals = [intervals, [lower; upper]];
+                elseif lower > intervals(2,end)
+                    intervals = [intervals, [lower; upper]];
+                else
+                    intervals(2,end) = upper;
+                end
+            end
+        end
+    end
 end
 end

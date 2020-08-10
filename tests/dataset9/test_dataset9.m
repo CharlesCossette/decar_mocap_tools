@@ -45,7 +45,7 @@ tempDerv2 = splineDerv(splineMocap.RigidBody, t, 2);
 % Generate the data first
 accMocap   = zeros(3,length(t));
 omegaMocap = zeros(3,length(t));
-g_a = [0;0;-9.792];
+g_a = [0;0;-9.80665];
 for lv1=1:length(t)
 
     % Mocap omega data

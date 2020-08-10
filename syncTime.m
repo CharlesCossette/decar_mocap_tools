@@ -13,7 +13,7 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
-    g_a = [0;0;-9.792]; % gravity 
+    g_a = [0;0;-9.80665]; % gravity 
     
     knots = splineStruct.breaks;
     
