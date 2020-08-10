@@ -28,23 +28,17 @@ function [C_ms, biasAcc_s, biasGyr_s, dataCalibrated] = calibrateFrames(dataSync
     biasAcc_s = x(4:6);
     biasGyr_s = x(7:9);
     C_ms = ROTVEC_TO_DCM(phi);
-    
-    f = @(C, bAcc, bGyr) computeErrorVector(C, bAcc, bGyr, dataSynced);
-
-    % Compute the Jacobian w.r.t. the biases
-%     A_biases = [-repmat(eye(3),numAcc,1), zeros(3*numAcc,3);...
-%                 zeros(3*numGyr,3),        -repmat(eye(3),numGyr,1)];
-%                             
+                            
     iter = 0;
     while norm(delta) > TOL && iter < 100
         % compute error vector
-        e = f(C_ms, biasAcc_s, biasGyr_s);
+        e = errorFull(C_ms, biasAcc_s, biasGyr_s, dataSynced);
         
         % compute Jacobian
-        f_Cms = @(C) f(C, biasAcc_s, biasGyr_s);
+        f_Cms = @(C) errorFull(C, biasAcc_s, biasGyr_s, dataSynced);
         A_phi = complexStepJacobianLie(f_Cms,C_ms,3,@CrossOperator,'direction','left');
         
-        f_bias = @(b) f(C_ms, b(1:3), b(4:6));
+        f_bias = @(b) errorFullStaticOnly(C_ms, b(1:3), b(4:6), dataSynced);
         A_bias_CS = complexStepJacobian(f_bias, [biasAcc_s;biasGyr_s]);
         
         A     = [A_phi, A_bias_CS];
@@ -56,7 +50,7 @@ function [C_ms, biasAcc_s, biasGyr_s, dataCalibrated] = calibrateFrames(dataSync
         if iter > 20
             delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
         else
-            delta = -(A.'*A) \ A.' * e;
+            delta = -(A.'*A) \( A.' * e);
         end
         
         % decompose
@@ -73,7 +67,7 @@ function [C_ms, biasAcc_s, biasGyr_s, dataCalibrated] = calibrateFrames(dataSync
     end
     
     % compute error vector
-    e = f(C_ms, biasAcc_s, biasGyr_s);
+    e = errorFull(C_ms, biasAcc_s, biasGyr_s, dataSynced);
     RMSE = sqrt((e.'*e)./length(dataSynced.t));
     disp(['RMSE After Calibration: ' , num2str(RMSE)])
     %% Plotting to evaluate performance visually
@@ -150,9 +144,43 @@ function [C_ms, biasAcc_s, biasGyr_s, dataCalibrated] = calibrateFrames(dataSync
     ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
-function output = computeErrorVector(C_ms, bAcc, bGyr, dataSynced)
-    gaps = dataSynced.gapIndices;
-    error_accel = dataSynced.accMocap(:,~gaps) - C_ms*(dataSynced.accIMU(:,~gaps) + bAcc);
-    error_omega = dataSynced.omegaMocap(:,~gaps) - C_ms*(dataSynced.omegaIMU(:,~gaps) + bGyr);
-    output = [error_accel(:);error_omega(:)];
+function output = errorFull(C_ms, bAcc, bGyr, dataSynced)
+    ea = errorAccel(C_ms, bAcc, bGyr, dataSynced);
+    eg = errorGyro(C_ms, bAcc, bGyr, dataSynced);
+    output = [ea;eg];
+end
+function output = errorAccel(C_ms, bAcc, bGyr, dataSynced)
+    isGap = dataSynced.gapIndices;
+    error_accel = dataSynced.accMocap(:,~isGap) ...
+                  - C_ms*(dataSynced.accIMU(:,~isGap) + bAcc);
+    output = error_accel(:);
+end
+function output = errorGyro(C_ms, bAcc, bGyr, dataSynced)
+    isGap = dataSynced.gapIndices;
+    error_gyro = dataSynced.omegaMocap(:,~isGap) ...
+                  - C_ms*(dataSynced.omegaIMU(:,~isGap) + bGyr);
+    output = error_gyro(:);
+end
+function output = errorFullStaticOnly(C_ms, bAcc, bGyr, dataSynced)
+    ea = errorAccelStaticOnly(C_ms, bAcc, bGyr, dataSynced);
+    eg = errorGyroStaticOnly(C_ms, bAcc, bGyr, dataSynced);
+    output = [ea;eg];
+end
+function output = errorAccelStaticOnly(C_ms, bAcc, bGyr, dataSynced)
+    isGap = dataSynced.gapIndices;
+    isStatic = dataSynced.staticIndices;
+    error_accel = dataSynced.accMocap ...
+                  - C_ms*(dataSynced.accIMU + bAcc);
+    error_accel(:,~isStatic) = 0;
+    error_accel = error_accel(:,~isGap);
+    output = error_accel(:);
+end
+function output = errorGyroStaticOnly(C_ms, bAcc, bGyr, dataSynced)
+    isGap = dataSynced.gapIndices;
+    isStatic = dataSynced.staticIndices;
+    error_gyro = dataSynced.omegaMocap ...
+                  - C_ms*(dataSynced.omegaIMU + bGyr);
+    error_gyro(:,~isStatic) = 0;
+    error_gyro = error_gyro(:,~isGap);
+    output = error_gyro(:);
 end
