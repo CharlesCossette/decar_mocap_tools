@@ -33,7 +33,7 @@ dataMocap.RigidBody.type = 'Rigid Body';
 dataMocap.RigidBody.C_ba = C_ba;
 % TODO: Unfortunately there's some discontinuities in the quaternion data
 % from simulation! 
-dataMocap.RigidBody.q_ba = dcm2quat(C_ba).';
+dataMocap.RigidBody.q_ba = smoothdcm2quat(C_ba).';
 dataMocap.RigidBody.mocapGaps = [];
 
 % For the IMU truth is again sampled but at higher frequency. 
@@ -71,7 +71,7 @@ function [x_dot, data] = kinematics(t,x)
     x_dot = [r_zw_a_dot;v_zw_a_dot;C_ba_dot(:)];
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    g_a = [0;0;-9.81];
+    g_a = [0;0;-9.80665];
     data.r_zw_a = r_zw_a;
     data.v_zw_a = v_zw_a;
     data.a_zw_a = C_ba.'*a_zw_a;

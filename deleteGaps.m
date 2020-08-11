@@ -1,18 +1,9 @@
-function [dataCleaned, gapIndices] = deleteGaps(dataSynced, gaps)
+function [dataCleaned, gapIndices] = deleteGaps(dataSynced, gapIntervals)
 % A function that takes as input synced IMU and Mocap data, as well as
 % regions of time which are to be disregarded, and outputs a cleaned
 % version of the IMU and Mocap data.
 
-    % Number of gaps
-    numGaps = size(gaps, 2);
-    
-    % Find the indices of the input data that lie within the input gaps
-    gapIndices = zeros(length(dataSynced.t), 1);
-    for lv1=1:1:numGaps
-        temp = dataSynced.t > gaps(1,lv1) & dataSynced.t < gaps(2,lv1);
-        gapIndices = gapIndices + temp;
-    end
-    gapIndices = logical(gapIndices);
+    gapIndices = getIndicesFromIntervals(dataSynced.t, gapIntervals);
     
     % Remove those indices from all the data
     dataCleaned = dataSynced;

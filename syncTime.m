@@ -1,4 +1,4 @@
-function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
+function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -13,25 +13,13 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
         accThreshold = 12; 
     end
 
-    g_a = [0;0;-9.792]; % gravity 
+    g_a = [0;0;-9.80665]; % gravity 
     
-    knots = splineStruct.breaks;
+    t_mocap = splineStruct.breaks;
     
     %% Generating Mocap accelerometer data using fitted spline
-    numKnots = length(splineStruct.breaks);
-    mocap_acc = zeros(3, numKnots);
-    temp     = ppval(splineStruct,splineStruct.breaks);
-    tempDerv = splineDerv(splineStruct, splineStruct.breaks, 2);
-    for lv1=1:numKnots     
-        % extract attitude
-        q_ba = temp(4:7,lv1);
-        q_ba = q_ba./norm(q_ba);
-        C_ba   = quat2dcm(q_ba.');
-        
-        % extract acceleration + gravity
-        mocap_acc(:,lv1) = C_ba*(tempDerv(1:3,lv1) - g_a);
-    end
-    
+    [mocap_acc, ~] = getFakeImuMocap(splineStruct,t_mocap,g_a);
+
     %% Finding the timestep in which a spike occurs in both datasets
     % Finding the peak in the IMU data
     accNormIMU    = vecnorm(dataIMU.accel);
@@ -42,7 +30,7 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     % Finding the peak in the Mocap data
     accNormMocap    = vecnorm(mocap_acc);
     spikeIndexMocap = find(accNormMocap>accThreshold,1,'first');
-    tSyncMocap      = knots(spikeIndexMocap); % the timestep of the spike in 
+    tSyncMocap      = t_mocap(spikeIndexMocap); % the timestep of the spike in 
                                               % the Mocap ground truth data
     
     % the offset, to be used to extract Mocap data for the UWB data as well
@@ -59,46 +47,31 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
                                        % the current timestamp and the 
                                        % timestap at which the peak occurred.
         t = tDiff + tSyncMocap; % the corresponding time in the Mocap time reference.
-        if t < 0 || t > knots(length(knots))
+        if t < 0 || t > t_mocap(length(t_mocap))
             continue
         end
         
         index_synced = [index_synced; lv1];
         t_synced = [t_synced; t];
     end
-    
-    % Extract information from the b-spline fit at the required timesteps.
-    temp      = ppval(splineStruct,t_synced);
-    tempDerv  = splineDerv(splineStruct, t_synced, 1);
-    tempDerv2 = splineDerv(splineStruct, t_synced, 2);
-    
+
+    % Find IMU measurement timestamps to the Mocap clock
     IMU_acc_synced     = zeros(3,length(t_synced));
     IMU_gyr_synced     = zeros(3,length(t_synced));
-    Mocap_acc_synced   = zeros(3,length(t_synced));
-    Mocap_omega_synced = zeros(3,length(t_synced));
     for lv1=1:length(t_synced)
         indx = index_synced(lv1);
         IMU_acc_synced(:,lv1) = dataIMU.accel(:,indx);
         IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,indx);
-
-        % Mocap omega data
-        q_ba     = temp(4:7,lv1);
-        q_ba = q_ba./norm(q_ba);
-        q_ba_dot = tempDerv(4:7,lv1);
-        omega_ba_b = quatrate2omega(q_ba, q_ba_dot);
-        Mocap_omega_synced(:,lv1) = omega_ba_b;
-
-        % Mocap acceleration data
-        C_ba = quat2dcm(q_ba.');
-        Mocap_acc_synced(:,lv1) = C_ba*(tempDerv2(1:3,lv1) - g_a);
     end
     
+    % Emulate accelerometer and gyroscope measurements at required timesteps.
+    [mocap_acc_synced, mocap_omega_synced, dataSynced] = getFakeImuMocap(splineStruct, t_synced, g_a);
     
     %% Visualizing the time synchronization
     figure
     plot(t_synced, vecnorm(IMU_acc_synced))
     hold on
-    plot(t_synced, vecnorm(Mocap_acc_synced))
+    plot(t_synced, vecnorm(mocap_acc_synced))
     hold off
     grid on
     xlabel('$x$ [s]','interpreter','latex')
@@ -108,7 +81,7 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     figure
     plot(t_synced, vecnorm(IMU_gyr_synced))
     hold on
-    plot(t_synced, vecnorm(Mocap_omega_synced))
+    plot(t_synced, vecnorm(mocap_omega_synced))
     hold off   
     xlabel('$t$ [s]','interpreter','latex')
     ylabel('$\omega^{ba}_b$','interpreter','latex')
@@ -116,11 +89,11 @@ function [syncedData, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     legend('IMU Data','Mocap Data')
     title('Angular Velocity')
     %% Save the synchronized data
-    syncedData.t          = t_synced;
-    syncedData.accIMU     = IMU_acc_synced;
-    syncedData.omegaIMU   = IMU_gyr_synced;
-    syncedData.accMocap   = Mocap_acc_synced;
-    syncedData.omegaMocap = Mocap_omega_synced;
+    dataSynced.t          = t_synced;
+    dataSynced.accIMU     = IMU_acc_synced;
+    dataSynced.omegaIMU   = IMU_gyr_synced;
+    dataSynced.accMocap   = mocap_acc_synced;
+    dataSynced.omegaMocap = mocap_omega_synced;
     
 end
 function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)
