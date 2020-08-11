@@ -33,7 +33,7 @@ dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
 
-[results, dataCalibrated] = calibrateFrames(dataAligned,splineMocap.RigidBody)
+[results, dataCalibrated] = calibrateFrames(dataAligned)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
@@ -45,6 +45,7 @@ g_a = results.g_a;
 N = length(t);
 r_zw_a = zeros(3,N);
 v_zwa_a = zeros(3,N);
+a_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
@@ -56,6 +57,7 @@ for lv1 = 1:N-1
     C_ba(:,:,lv1+1) = expm(-CrossOperator(omega_ba_b*dt))*C_ba(:,:,lv1);
     v_zwa_a(:,lv1+1) = v_zwa_a(:,lv1) + (C_ba(:,:,lv1).'*a_zwa_b + g_a)*dt;
     r_zw_a(:,lv1+1) = r_zw_a(:,lv1) + v_zwa_a(:,lv1)*dt;
+    a_zw_a(:,lv1) = C_ba(:,:,lv1).'*a_zwa_b + g_a;
 end
 
 figure
@@ -84,9 +86,10 @@ C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
 g_a = results.g_a;
+a_zwa_a = zeros(3,N);
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 14) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 0) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else
@@ -96,7 +99,7 @@ for lv1 = 1:N-1
     C_ba(:,:,lv1+1) = expm(-CrossOperator(omega_ba_b*dt))*C_ba(:,:,lv1);
     v_zwa_a(:,lv1+1) = v_zwa_a(:,lv1) + (C_ba(:,:,lv1).'*a_zwa_b + g_a)*dt;
     r_zw_a(:,lv1+1) = r_zw_a(:,lv1) + v_zwa_a(:,lv1)*dt;
-    
+    a_zwa_a(:,lv1) = C_ba(:,:,lv1).'*a_zwa_b + g_a;
 end
 phi_ba = DCM_TO_ROTVEC(C_ba);
 phi_ba_mocap = DCM_TO_ROTVEC(dataMocap.RigidBody.C_ba);
@@ -143,3 +146,18 @@ plot(dataMocap.RigidBody.t, phi_ba_mocap(3,:))
 hold off
 grid on
 ylabel('$\phi_3$','interpreter','latex')
+
+figure
+subplot(3,1,1)
+plot(dataCalibrated.t(1:end), a_zwa_a(1,:))
+grid on
+
+subplot(3,1,2)
+plot(dataCalibrated.t(1:end), a_zwa_a(2,:))
+grid on
+
+subplot(3,1,3)
+plot(dataCalibrated.t(1:end), a_zwa_a(3,:))
+grid on
+
+
