@@ -66,7 +66,7 @@ function dataUwbCorrected = extractUwbBias(splineMocap, dataUWB, r_pz_b, bodyNam
         end
         
         % compute error = measured - true, and remove missing values.
-        error = dataUWB.(fieldIter).meas - dist;
+        error = dataUWB.(fieldIter) - dist;
         [error_noMissing, error_missingIndex] = rmmissing(error);
         t = dataUWB.t(~error_missingIndex);
         
@@ -77,7 +77,7 @@ function dataUwbCorrected = extractUwbBias(splineMocap, dataUWB, r_pz_b, bodyNam
         vals = csaps(t(~outlierIndex), error_noOutliers, 1E-3, t);
         
         % Extract clean measurements
-        [meas_noMissing, meas_missingIndex] = rmmissing(dataUWB.(fieldIter).meas);
+        [meas_noMissing, meas_missingIndex] = rmmissing(dataUWB.(fieldIter));
         
         % compute cleaned and corrected data
         dataUwbCorrected.(fieldIter).t    = dataUWB.t(~meas_missingIndex);
