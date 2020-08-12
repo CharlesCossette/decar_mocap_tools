@@ -1,6 +1,10 @@
 function S = UWB_csv2struct(filename, t0)
 % Extracts UWB data.
 % The input t0 synchronizes the UWB data with the IMU.
+    
+    if nargin < 2
+        t0 = 0; % no time synchronization.
+    end
 
     opts = detectImportOptions(filename, 'Delimiter', ',');
     header_row_range = [num2str(1),':',num2str(opts.DataLine(1)+1)];
