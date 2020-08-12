@@ -32,7 +32,7 @@ end
 if isfield(options,'scale')
     scale = options.scale;
 else
-    scale = false;
+    scale = true;
 end
 
 if isfield(options,'skew')
