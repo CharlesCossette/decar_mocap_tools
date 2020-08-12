@@ -1,5 +1,5 @@
 % An example of how to use the Mocap tools.
-
+clear;
 close all;
 %% Get IMU position
 r_imuz_b = mocap_getPointInBodyFrame('2020_08_04_180_calibration_trial7',...
@@ -32,8 +32,11 @@ tic
 dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
-
-[results, dataCalibrated] = calibrateFrames(dataAligned)
+options.frames = true;
+options.bias = true;
+options.scale = true;
+options.skew = true;
+[results, dataCalibrated] = calibrateFrames(dataAligned, options)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
@@ -89,7 +92,7 @@ g_a = results.g_a;
 a_zwa_a = zeros(3,N);
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 19) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 0) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else

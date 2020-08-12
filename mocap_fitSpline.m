@@ -40,6 +40,7 @@ for lv1=1:1:numel(rigidBodies)
         % Assume initial and final velocity, angular velocity are 0
         %pp = spline(t,waypoints);
         pp = csaps(t,waypoints,0.9999995);
+        % pp = fn2fm(spaps(t,waypoints,0.001,[],3))
         
         % Saving the computed B-spline fit.
         splineMocap.(bodyName{1}) = pp;
