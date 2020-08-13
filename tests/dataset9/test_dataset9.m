@@ -35,8 +35,9 @@ toc
 options.frames = true;
 options.bias = true;
 options.scale = true;
-options.skew = true;
-[results, dataCalibrated] = calibrateFrames(dataAligned, options)
+options.skew = false;
+options.grav = true;
+[results, dataCalibrated] = calibrateImu(dataAligned, options)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
@@ -88,11 +89,13 @@ v_zwa_a = zeros(3,N);
 C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
+g_a = [0;-0.001;-1];
+g_a = 9.80665*g_a./norm(g_a)
 g_a = results.g_a;
 a_zwa_a = zeros(3,N);
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 0) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 20) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else
@@ -106,16 +109,30 @@ for lv1 = 1:N-1
 end
 phi_ba = DCM_TO_ROTVEC(C_ba);
 phi_ba_mocap = DCM_TO_ROTVEC(dataMocap.RigidBody.C_ba);
+
+f = @(t,x) imuDeadReckoningODE(t,x,dataCalibrated.t, dataCalibrated.accIMU, ...
+                               dataCalibrated.omegaIMU, results.g_a);                    
+t_span = dataCalibrated.t;
+C_ba_0 = eye(3);
+q_ba_0 = dcm2quat(dataMocap.RigidBody.C_ba(:,:,1));
+x_0 = [dataMocap.RigidBody.r_zw_a(:,1); 0;0;0;q_ba_0.'];
+options.indices_to_normalize = 7:10;
+
+[t, x_rk4] = ode4(f, t_span, x_0, options);
+r_zw_a_rk4 = x_rk4(:,1:3).';
+
+
 figure
 plot3(r_zw_a(1,1:6000), r_zw_a(2,1:6000), r_zw_a(3,1:6000),'linewidth',2)
 hold on
 plot3(dataMocap.RigidBody.r_zw_a(1,1:3175),...
       dataMocap.RigidBody.r_zw_a(2,1:3175),...
       dataMocap.RigidBody.r_zw_a(3,1:3175),'linewidth',2);
+%plot3(r_zw_a_rk4(1,1:6000), r_zw_a_rk4(2,1:6000), r_zw_a_rk4(3,1:6000),'LineWidth',2)
 hold off
 axis vis3d
 axis equal
-legend('Dead-Reckon Solution','Ground Truth')
+legend('Dead-Reckon Solution','Ground Truth','RK4 Dead-Reckoning')
 title('Position')
 %axis([-1 4 -2 2 0 3])
 xlabel('x')

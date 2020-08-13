@@ -75,7 +75,7 @@ C_ae = eye(3);
 delta = Inf;
 iter = 0;
 while norm(delta) > TOL && iter < 100
-    indx_counter = 1;
+    indxCounter = 1;
     % compute error vector
     e = errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
     
@@ -83,39 +83,39 @@ while norm(delta) > TOL && iter < 100
     A = [];
     
     if frames
-        f_Cma = @(C) errorFull(C, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
-        A_phia = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
+        f_C_ma = @(C) errorFull(C, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
+        A_phi_a = complexStepJacobianLie(f_C_ma,C_ma,3,@CrossOperator,'direction','left');
 
-        f_Cmg = @(C) errorFull(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
-        A_phig = complexStepJacobianLie(f_Cmg,C_ma,3,@CrossOperator,'direction','left');
+        f_C_mg = @(C) errorFull(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
+        A_phi_g = complexStepJacobianLie(f_C_mg,C_ma,3,@CrossOperator,'direction','left');
 
-        A = [A,A_phia, A_phig];
-        phi_indices = indx_counter:indx_counter+5;
-        indx_counter = indx_counter + 6;
+        A = [A, A_phi_a, A_phi_g];
+        phiIndices = indxCounter:indxCounter+5;
+        indxCounter = indxCounter + 6;
     end
     
     if bias
         f_bias = @(b) errorFull(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
         A_bias = complexStepJacobian(f_bias, [bias_a;bias_g]);
-        A = [A,A_bias];
-        bias_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        A = [A, A_bias];
+        bias_indices = indxCounter:indxCounter + 5;
+        indxCounter = indxCounter + 6;
     end
     
     if scale
         f_scale = @(s) errorFull(C_ma, C_mg, bias_a, bias_g, s(1:3), s(4:6), skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
         A_scale = complexStepJacobian(f_scale, [bias_a;bias_g]);
         A = [A,A_scale];
-        scale_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        scaleIndices = indxCounter:indxCounter + 5;
+        indxCounter = indxCounter + 6;
     end
     
     if skew
         f_skew = @(s) errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, s(1:3), s(4:6), C_ae, dataSynced, W_a, W_g);
         A_skew = complexStepJacobian(f_skew, [skew_a;skew_g]);
         A = [A, A_skew];
-        skew_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        skewIndices = indxCounter:indxCounter + 5;
+        indxCounter = indxCounter + 6;
     end
     
     if grav
@@ -123,7 +123,7 @@ while norm(delta) > TOL && iter < 100
         f_phiae = @(phi) f_Cae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phiae = complexStepJacobian(f_phiae,[0;0]);
         A = [A, A_phiae];
-        grav_indices = indx_counter:indx_counter + 1;
+        gravIndices = indxCounter:indxCounter + 1;
     end
     
     cost = 0.5*(e.'*e)
@@ -143,8 +143,8 @@ while norm(delta) > TOL && iter < 100
     
     % decompose and update
     if frames
-        del_phia    = delta(phi_indices(1:3));
-        del_phig    = delta(phi_indices(4:6));
+        del_phia    = delta(phiIndices(1:3));
+        del_phig    = delta(phiIndices(4:6));
         C_ma = ROTVEC_TO_DCM(-del_phia)*C_ma;
         C_mg = ROTVEC_TO_DCM(-del_phig)*C_mg;
     end
@@ -157,21 +157,21 @@ while norm(delta) > TOL && iter < 100
     end
     
     if scale
-        del_scale_a = delta(scale_indices(1:3));
-        del_scale_g = delta(scale_indices(4:6));
+        del_scale_a = delta(scaleIndices(1:3));
+        del_scale_g = delta(scaleIndices(4:6));
         scale_a = scale_a + del_scale_a;
         scale_g = scale_g + del_scale_g;
     end
     
     if skew
-        del_skew_a = delta(skew_indices(1:3));
-        del_skew_g = delta(skew_indices(4:6));
+        del_skew_a = delta(skewIndices(1:3));
+        del_skew_g = delta(skewIndices(4:6));
         skew_a = skew_a + del_skew_a;
         skew_g = skew_g + del_skew_g;
     end
     
     if grav
-        del_phiae = delta(grav_indices);
+        del_phiae = delta(gravIndices);
         C_ae = ROTVEC_TO_DCM(-[del_phiae;0])*C_ae;
     end
 

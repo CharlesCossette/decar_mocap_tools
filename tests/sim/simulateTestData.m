@@ -138,7 +138,7 @@ T_skew(1,2) = -skew_a(3);
 T_skew(1,3) = skew_a(2);
 T_skew(2,3) = -skew_a(1);
 accel_corrupt = inv(diag(scale_a))*inv(T_skew)*C_ma.'*accel_ideal - bias_a ...
-                + randn(3,1)*sigma_accel;
+                + randn(size(accel_ideal))*sigma_accel;
 
 % Calibrated Gyroscope measurements
 T_skew = eye(3);
@@ -146,7 +146,7 @@ T_skew(1,2) = -skew_g(3);
 T_skew(1,3) = skew_g(2);
 T_skew(2,3) = -skew_g(1);
 gyro_corrupt = inv(diag(scale_g))*inv(T_skew)*C_mg.'*omega_ideal - bias_g ...
-               + randn(3,1)*sigma_gyro;
+               + randn(size(omega_ideal))*sigma_gyro;
 
 dataIMU.accel= accel_corrupt;
 dataIMU.gyro = gyro_corrupt;
