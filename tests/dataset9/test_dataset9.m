@@ -37,7 +37,7 @@ options.bias = true;
 options.scale = true;
 options.skew = false;
 options.grav = true;
-[results, dataCalibrated] = calibrateImu(dataAligned, options)
+[results, dataCalibrated] = calibrateFrames(dataAligned, options)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
@@ -90,8 +90,8 @@ C_ba = zeros(3,3,N);
 r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
 C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
 g_a = [0;-0.001;-1];
-g_a = 9.80665*g_a./norm(g_a)
-g_a = results.g_a;
+g_a = 9.80665*g_a./norm(g_a);
+g_a = results.g_a
 a_zwa_a = zeros(3,N);
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);

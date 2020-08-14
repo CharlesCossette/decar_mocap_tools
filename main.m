@@ -53,15 +53,11 @@ dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.Rigid
 tic
 dataAligned = alignFrames(dataSynced)
 toc
-%% Obtain indices of gaps in mocap data, and identified stationary periods
-dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.gapIntervals);
-dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.staticIntervals);
-%% Align the frames of the Mocap and IMU data to find an initial DCM
-tic
-dataAligned = alignFrames(dataSynced)
-toc
+
 %% Refine the DCM between the two assigned body frames
 options.frames = true;
 options.bias = true;
-options.scale = true;
-[results, dataCalibrated] = calibrateFrames(dataAligned, options)
+options.scale = false;
+options.skew = false;
+options.grav = true;
+[results, dataCalibrated] = calibrateImu(dataAligned, options)

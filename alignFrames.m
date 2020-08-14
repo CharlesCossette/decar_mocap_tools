@@ -4,55 +4,10 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
 
     if nargin < 2
         rightHandedOnly = false; % by default, assume the possibility of 
-                             % left-handed frames
+                                 % left-handed frames
     end
     
-    % Create a mesh of all possible rotations of the frame.
-    [roll, pitch, yaw] = meshgrid([-pi/2, 0 , pi/2]);
-    [sign1, sign2, sign3] = meshgrid([-1, 1]);
-    angs = [roll(:),pitch(:), yaw(:)];
-    signs = [sign1(:),sign2(:),sign3(:)];
-    
-    % Set up function handles for the principal DCMs.
-    C1 = @(x) [1, 0, 0; 0 cos(x) -sin(x); 0 sin(x) cos(x)];
-    C2 = @(x) [cos(x) 0 sin(x); 0 1 0; -sin(x) 0 cos(x)];
-    C3 = @(x) [cos(x) -sin(x) 0; sin(x) cos(x) 0; 0 0 1];
-    
-    % Generate all possible right-handed DCMs
-    C_list = zeros(3,3,size(angs,1)+1);
-    
-    for lv1 = 1:size(angs,1)
-        C_list(:,:,lv1) = C1(angs(lv1,1))*C2(angs(lv1,2))*C3(angs(lv1,3));
-    end
-    
-    % Strip duplicates
-    C_list = round(C_list); % round to eliminate numerical errors
-    C_list_rows = mat3D2rows(C_list);
-    C_list_rows(all(C_list_rows == 0,2),:) = []; % Remove any that are all zeros.
-    C_list_rows = unique(C_list_rows,'rows');
-    C_list = rows2mat3D(C_list_rows);
-    
-    % For each of the right handed DCMs, create all possible left-handed
-    % DCMs
-    if rightHandedOnly
-        C_all = C_list;
-    else
-        C_all = zeros(3,3,size(C_list,3)*size(signs,1));
-        counter = 1;
-        for lv1 = 1:size(C_list,3)
-            for lv2 = 1:size(signs,1)
-                C_all(:,:,counter) = C_list(:,:,lv1).*signs(lv2,:);
-                counter = counter + 1;
-            end
-        end
-        % Strip duplicates again
-        C_all = round(C_all); % round to eliminate numerical errors
-        C_all_rows = mat3D2rows(C_all);
-        C_all_rows(all(C_all_rows == 0,2),:) = []; % Remove any that are all zeros.
-        C_all_rows = unique(C_all_rows,'rows');
-        C_all = rows2mat3D(C_all_rows);
-    end
-    
+    C_all = getAllPermutationMatrices(rightHandedOnly);
 
     % We now have a set of all the possible DCMs corresponding to different
     % axis switches, including left-handed frames.
@@ -100,29 +55,6 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
     C_am = C_ma_best;
     C_gm = C_mg_best;
         
-end
-
-function C_rows = mat3D2rows(Cs)
-    % Takes a [3 x 3 x N] matrix of DCMs and returns a [N x 9] matrix where
-    % each row is the columns of the DCM stacked in a [1 x 9]
-    n = size(Cs,1);
-    m = size(Cs,2);
-    C_rows = zeros(size(Cs,3),n*m);
-    for lv1 = 1:size(Cs,3)
-        C = Cs(:,:,lv1);
-        C_rows(lv1,:) = C(:).'; 
-    end
-end
-
-function Cs = rows2mat3D(C_rows)
-    % Takes a [N x 9] matrix where each row is the columns of the DCM 
-    % stacked in a [1 x 9] and returns the DCMs in a [3 x 3 x N] matrix.
-    n = 3;
-    m = 3;
-    Cs = zeros(n,m,size(C_rows,1));
-    for lv1 = 1:size(C_rows,1)
-        Cs(:,:,lv1) = reshape(C_rows(lv1,:),n,m);
-    end
 end
 
 function output = computeErrorAccel(C_ms,dataSynced)

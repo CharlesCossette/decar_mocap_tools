@@ -212,27 +212,16 @@ for lv1=1:1:objectNum
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
-
 objectNames = fieldnames(S);
 objectNum   = length(objectNames);
-detectInterval = 1; % In seconds
-detectIndices = detectInterval/2*120;
-covThreshold = 0.001^2;
-
+stdDevThreshold = 0.001;
+windowSize = 1;
 for lv1=1:1:objectNum
     object = S.(objectNames{lv1});
-    t      = object.t';
-    isStatic = false(size(t));
-    for lv2 = detectIndices:(length(t) - detectIndices)
-        pos_cov = cov(object.r_zw_a(:,lv2 - detectIndices +1: lv2 + detectIndices).');
-        if norm(diag(pos_cov)) < covThreshold
-            % Then it is static
-            isStatic(lv2) = true;
-        end
-    end
-    staticIntervals = getIntervalsFromIndices(t,isStatic,0.4,0);
-    S.(objectNames{lv1}).staticIntervals = staticIntervals;
+    S.(objectNames{lv1}).staticIntervals = ...
+        mocapGetStaticIntervals(object, windowSize, stdDevThreshold);
 end
+
 end
 function y = stringincell(x,str)
 % Checks if contents in a cell "x" match the string "str". Using a
@@ -245,75 +234,4 @@ catch
 end
 end
 
-function q_31 = quatmul(q_32, q_21)
-%QUATMUL A vectorized implementation of quaternion multiplication. The
-% formulas are taken from (1.49) of Spacecraft Dynamics and Control:
-% An Introduction
-% de Ruiter, Anton H.J. ;Damaren, Christopher J.; Forbes, James R.
-%
-% If q_21 is the quaternion parameterization of C_21, then this function
-% returns q_31 where C_31 = C_32*C_21;
-%
-% We use slightly different formulas depending on which of q_32, q_21 are
-% sent as the list of quaternions. This is strictly for vectorization
-% reasons, the underlying operations are equivalent.
-%
-% Allows either q_32 to be a batch of quaternions, or q_21, but not both.
-if size(q_32,2) > 1
-    etas_32 = q_32(1,:);
-    eps_32 = q_32(2:4,:);
-    eps_21 = q_21(2:4);
-    eta_21 = q_21(1);
-    etas_31 = eta_21*etas_32 - eps_21.'*eps_32; % Formulas from above.
-    eps_31 = etas_32.*eps_21 + eta_21*eps_32 + CrossOperator(eps_21)*eps_32;
-    q_31 = [etas_31;eps_31];
-elseif size(q_21,2) > 1
-    etas_32 = q_32(1);
-    eps_32 = q_32(2:4);
-    eps_21 = q_21(2:4,:);
-    eta_21 = q_21(1,:);
-    etas_31 = eta_21*etas_32 - eps_32.'*eps_21; % Formulas from above.
-    eps_31 = etas_32.*eps_21 + eps_32*eta_21 - CrossOperator(eps_32)*eps_21;
-    q_31 = [etas_31;eps_31];
-end
-end
 
-function intervals = getIntervalsFromIndices(t,indices,thresDiff,bufferSize)
-
-tMissing = t(:, indices);
-intervals = [];
-if ~isempty(tMissing)
-    % Find the time difference between the datapoints with missing data.
-    tMissingDiff = [tMissing(1), diff(tMissing)];
-    
-    % Find the indices of datapoints where the time difference exceeds a
-    % threshold.
-    tMissingIndices = find(tMissingDiff>thresDiff);
-    if ~isempty(tMissingIndices)
-        if tMissingIndices(end) ~= length(tMissing)
-            tMissingIndices = [tMissingIndices, length(tMissing)];
-        end
-        for lv2=1:1:length(tMissingIndices)-1
-            % check if solo point or within a range of data
-            if tMissing(tMissingIndices(lv2)+1) - tMissing(tMissingIndices(lv2)) < thresDiff
-                
-                % compute lower limit
-                lower = tMissing(tMissingIndices(lv2)) - bufferSize;
-                if lower < 0; lower = 0; end
-                
-                % compute upperlimit
-                upper = tMissing(tMissingIndices(lv2+1)-1) + bufferSize;
-                
-                % save range
-                if isempty(intervals)
-                    intervals = [intervals, [lower; upper]];
-                elseif lower > intervals(2,end)
-                    intervals = [intervals, [lower; upper]];
-                else
-                    intervals(2,end) = upper;
-                end
-            end
-        end
-    end
-end
-end

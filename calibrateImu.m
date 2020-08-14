@@ -70,9 +70,9 @@ skew_a = [0;0;0];
 skew_g = [0;0;0];
 C_ae = eye(3);
 
-params.window_size = length(dataSynced.t);
+params.window_size = 10000;
 params.min_index = 1; 
-params.interval_size = round(length(dataSynced.t)/20);
+params.interval_size = 250; %round(length(dataSynced.t)/20);
 params.batch_size = 250;
 params.max_index = params.min_index + params.window_size - 1;
 if params.max_index > length(dataSynced.t)
@@ -354,13 +354,15 @@ ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [error, error_position, error_attitude] = errorDeadReckoning(...
+function [error, error_position, error_velocity] = errorDeadReckoning(...
     C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, skew_a, skew_g, C_ae,...
     dataSynced, params ...
     ) 
-% ERRORDEADRECKONING 
-% TODO: currently subtracting quaternions, and I hate myself.
-% but it seems to work.
+% ERRORDEADRECKONING Corrects the IMU with the provided calibration
+% parameters, then integrates the data forward on specific intervals.
+% Returns the error between the integrated solution and the ground truth.
+    
+    % Extract some relevant information and parameters.
     isGap = dataSynced.gapIndices;
     isStatic = dataSynced.staticIndices;   
     interval_size = params.interval_size;
@@ -368,63 +370,98 @@ function [error, error_position, error_attitude] = errorDeadReckoning(...
     min_index = params.min_index;
     max_index = params.max_index;
     
+    % Create the corrected accelerometer measurement.
     T_skew_a = eye(3);
     T_skew_a(1,2) = -skew_a(3);
     T_skew_a(1,3) =  skew_a(2);
     T_skew_a(2,3) = -skew_a(1);
     accel_corrected = C_ma*T_skew_a*diag(scale_a)*(dataSynced.accIMU + bAcc);
     
+    % Create the corrected gyroscoep measurements.
     T_skew_g = eye(3);
     T_skew_g(1,2) = -skew_g(3);
     T_skew_g(1,3) =  skew_g(2);
     T_skew_g(2,3) = -skew_g(1);
     gyro_corrected = C_mg*T_skew_g*diag(scale_g)*(dataSynced.omegaIMU + bGyr); 
     
+    % Corrected gravity in the mocap world frame.
     g_e = [0;0;-9.80665];
     g_a = C_ae*g_e;
     
-    odefun = @(t,x) imuDeadReckoningODE(t, x, dataSynced.t, accel_corrected, gyro_corrected, g_a);
-    x_dr = [];
-    
+    % Go through each interval and dead-reckon for a small duration of
+    % length batch_size. Compare results to ground truth.
     error_position = nan(3,length(dataSynced.t));
+    error_velocity = nan(3,length(dataSynced.t));
     error_attitude = nan(3,length(dataSynced.t));
-    for lv1 = min_index:interval_size:(max_index + 1 - interval_size)
-        t_span = dataSynced.t(lv1:lv1 + batch_size - 1);
-        x0 = [dataSynced.r_zw_a(:,lv1);
-              dataSynced.v_zwa_a(:,lv1);
-              dataSynced.q_ba(:,lv1)];
-        options.indices_to_normalize = 7:10;
-        [~, x_dr_batch] = ode1(odefun, t_span, x0, options);
-        r_zw_a_dr_batch = x_dr_batch(:,1:3).';
-        q_ba_dr_batch = x_dr_batch(:,7:10).';
-        q_ab_dr_batch = q_ba_dr_batch;
-        q_ab_dr_batch(2:4) = -q_ab_dr_batch(2:4);
-        C_ab_dr_batch = quat2dcmimag(q_ab_dr_batch.');
-        C_bb = matmul3d(dataSynced.C_ba(:,:,lv1:lv1 + batch_size - 1), C_ab_dr_batch);
-        error_position(:,lv1:lv1 + batch_size - 1) = ...
-            dataSynced.r_zw_a(:, lv1:lv1 + batch_size - 1) - r_zw_a_dr_batch;
-%         error_attitude(:,lv1:lv1 + batch_size - 1) = ...
-%            dataSynced.q_ba(:,lv1:lv1 + batch_size - 1) - q_ba_dr_batch;
-        error_attitude(:,lv1:lv1 + batch_size - 1) = DCM_TO_ROTVEC(C_bb);
-        x_dr = [x_dr;x_dr_batch];
+    for lv1 = min_index:interval_size:(max_index + 1 - interval_size)        
+        N = batch_size;
+        r_zw_a_dr = zeros(3,N);
+        v_zwa_a_dr = zeros(3,N);
+        C_ba_dr = zeros(3,3,N);
+        
+        % Initial conditions from mocap (if we detected static, force zero
+        % velocity).
+        r_zw_a_dr(:,1) = dataSynced.r_zw_a(:,lv1);
+        if isStatic(lv1)
+            v_zwa_a_dr(:,1) = zeros(3,1);
+        else
+            v_zwa_a_dr(:,1) = dataSynced.v_zwa_a(:,lv1);
+        end
+        C_ba_dr(:,:,1) = dataSynced.C_ba(:,:,lv1);
+        
+        for lv2 = 1:N-1
+            % Index in the actual dataSynced timeseries.
+            idxData = lv2 + lv1 -1;
+            
+            % Dead-reckoning equations
+            % TODO: move to a seperate function.
+            dt = dataSynced.t(idxData + 1) - dataSynced.t(idxData);
+            omega_ba_b = gyro_corrected(:,idxData);
+            a_zwa_b = accel_corrected(:,idxData);
+            C_ba_dr(:,:,lv2+1) = expmTaylor(-CrossOperator(omega_ba_b*dt))*C_ba_dr(:,:,lv2);
+            v_zwa_a_dr(:,lv2+1) = v_zwa_a_dr(:,lv2) ...
+                                  + (C_ba_dr(:,:,lv2).'*a_zwa_b + g_a)*dt;
+            r_zw_a_dr(:,lv2+1) = r_zw_a_dr(:,lv2) + v_zwa_a_dr(:,lv2)*dt;
+            
+            % Build errors. If static, force zero as the reference.
+            error_position(:,idxData) = dataSynced.r_zw_a(:,idxData) - r_zw_a_dr(:,lv2);
+            error_attitude(:,idxData) = DCM_TO_ROTVEC((C_ba_dr(:,:,lv2)*dataSynced.C_ba(:,:,idxData).'));
+            if isStatic(idxData)
+                error_velocity(:,idxData) = [0;0;0] - v_zwa_a_dr(:,lv2);
+            else
+                error_velocity(:,idxData) = dataSynced.v_zwa_a(:,idxData) - v_zwa_a_dr(:,lv2);
+            end
+            
+        end
+
     end
-  
-    error_position(:,isStatic) = 40*error_position(:,isStatic);
-    error_attitude(:,isStatic) = 40*error_attitude(:,isStatic);
+    
+    % Add weight when static. 
+    error_position(:,isStatic) = error_position(:,isStatic);
+    error_velocity(:,isStatic) = 10*(error_velocity(:,isStatic));
+    error_attitude(:,isStatic) = error_attitude(:,isStatic);
+    
+    % Discard any corresponding to gaps in the mocap data, as the spline is
+    % potentially inaccurate during these times. 
     error_position = error_position(:,~isGap);
+    error_velocity = error_velocity(:,~isGap);
     error_attitude = error_attitude(:,~isGap);
+    
+    % Remove any NANs, which are periods for which we are not
+    % dead-reckoning.
     error_position = error_position(:,all(~isnan(error_position),1));
+    error_velocity = error_velocity(:,all(~isnan(error_velocity),1));
     error_attitude = error_attitude(:,all(~isnan(error_attitude),1));
     
-    error = [error_position(:);error_attitude(:)];
+    error = [error_position(:); error_velocity(:); error_attitude(:)];
 end
 
-function AB = matmul3d(A,B)
-AB = zeros(size(A,1),size(B,2),size(A,3));
-for lv1 = 1:size(A,3)
-    AB(:,:,lv1) = A(:,:,lv1)*B(:,:,lv1);
-end
-end
+% function AB = matmul3d(A,B)
+% AB = zeros(size(A,1),size(B,2),size(A,3));
+% for lv1 = 1:size(A,3)
+%     AB(:,:,lv1) = A(:,:,lv1)*B(:,:,lv1);
+% end
+% end
     
 
 

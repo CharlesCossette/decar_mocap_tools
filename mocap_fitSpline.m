@@ -6,8 +6,7 @@ if nargin < 1
     error('Data required');
 end
 if nargin < 2 || isempty(gapSize)
-    gapSize = 1; % set the default sampling frequency for spline
-    % fitting to be 1 sample per 10 recorded.
+    gapSize = 1; % set the default downsampling factor for spline
 end
 if nargin < 3
     visualBool = false; % visualizations turned off by default
@@ -50,8 +49,11 @@ for lv1=1:1:numel(rigidBodies)
         if visualBool
             plotScript(dataMocap,t,splineMocap,bodyName)
         end
+        
     end
+    
 end
+
 end
 
 function plotScript(data,t,splineMocap,bodyName)
