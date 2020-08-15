@@ -35,9 +35,9 @@ toc
 options.frames = true;
 options.bias = true;
 options.scale = true;
-options.skew = false;
+options.skew = true;
 options.grav = true;
-[results, dataCalibrated] = calibrateFrames(dataAligned, options)
+[results, dataCalibrated] = calibrateImu(dataAligned, options)
 
 %% Dead Reckon Spline to Validate 
 t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
@@ -95,7 +95,7 @@ g_a = results.g_a
 a_zwa_a = zeros(3,N);
 for lv1 = 1:N-1
     dt = dataCalibrated.t(lv1+1) - dataCalibrated.t(lv1);
-    if (dataCalibrated.t(lv1) > 20) && (dataCalibrated.t(lv1) < 140)
+    if (dataCalibrated.t(lv1) > 0) && (dataCalibrated.t(lv1) < 140)
         omega_ba_b = dataCalibrated.omegaIMU(:,lv1);
         a_zwa_b = dataCalibrated.accIMU(:,lv1);
     else
@@ -123,12 +123,12 @@ r_zw_a_rk4 = x_rk4(:,1:3).';
 
 
 figure
-plot3(r_zw_a(1,1:6000), r_zw_a(2,1:6000), r_zw_a(3,1:6000),'linewidth',2)
+plot3(r_zw_a(1,1:end), r_zw_a(2,1:end), r_zw_a(3,1:end),'linewidth',2)
 hold on
-plot3(dataMocap.RigidBody.r_zw_a(1,1:3175),...
-      dataMocap.RigidBody.r_zw_a(2,1:3175),...
-      dataMocap.RigidBody.r_zw_a(3,1:3175),'linewidth',2);
-%plot3(r_zw_a_rk4(1,1:6000), r_zw_a_rk4(2,1:6000), r_zw_a_rk4(3,1:6000),'LineWidth',2)
+plot3(dataMocap.RigidBody.r_zw_a(1,1:end),...
+      dataMocap.RigidBody.r_zw_a(2,1:end),...
+      dataMocap.RigidBody.r_zw_a(3,1:end),'linewidth',2);
+plot3(r_zw_a_rk4(1,1:end), r_zw_a_rk4(2,1:end), r_zw_a_rk4(3,1:end),'LineWidth',2)
 hold off
 axis vis3d
 axis equal

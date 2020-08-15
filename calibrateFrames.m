@@ -87,7 +87,7 @@ while norm(delta) > TOL && iter < 100
         A_phi_a = complexStepJacobianLie(f_C_ma,C_ma,3,@CrossOperator,'direction','left');
 
         f_C_mg = @(C) errorFull(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
-        A_phi_g = complexStepJacobianLie(f_C_mg,C_ma,3,@CrossOperator,'direction','left');
+        A_phi_g = complexStepJacobianLie(f_C_mg,C_mg,3,@CrossOperator,'direction','left');
 
         A = [A, A_phi_a, A_phi_g];
         phiIndices = indxCounter:indxCounter+5;
@@ -104,7 +104,7 @@ while norm(delta) > TOL && iter < 100
     
     if scale
         f_scale = @(s) errorFull(C_ma, C_mg, bias_a, bias_g, s(1:3), s(4:6), skew_a, skew_g, C_ae, dataSynced, W_a, W_g);
-        A_scale = complexStepJacobian(f_scale, [bias_a;bias_g]);
+        A_scale = complexStepJacobian(f_scale, [scale_a;scale_g]);
         A = [A,A_scale];
         scaleIndices = indxCounter:indxCounter + 5;
         indxCounter = indxCounter + 6;

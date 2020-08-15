@@ -70,10 +70,10 @@ skew_a = [0;0;0];
 skew_g = [0;0;0];
 C_ae = eye(3);
 
-params.window_size = 10000;
+params.window_size = 20000;
 params.min_index = 1; 
-params.interval_size = 250; %round(length(dataSynced.t)/20);
-params.batch_size = 250;
+params.interval_size = 20000; %round(length(dataSynced.t)/20);
+params.batch_size = 20000;
 params.max_index = params.min_index + params.window_size - 1;
 if params.max_index > length(dataSynced.t)
     params.max_index = length(dataSynced.t);
@@ -82,7 +82,9 @@ end
 
 % compute error vector once
 [~, e_pos, e_att] = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
-figure(2)
+
+figure(1)
+cla
 subplot(3,1,1)
 h1 = plot(real(e_pos(1,:)));
 axis([-inf inf -1 1])
@@ -97,34 +99,48 @@ h3 = plot(real(e_pos(3,:)));
 axis([-inf inf -1 1])
 grid on
 
+figure(2)
+cla
+subplot(3,1,1)
+h4 = plot(real(e_pos(1,:)));
+axis([-inf inf -1 1])
+title('Velocity Dead-Reckoning Error')
+grid on
+subplot(3,1,2)
+h5 = plot(real(e_pos(2,:)));
+axis([-inf inf -1 1])
+grid on
+subplot(3,1,3)
+h6 = plot(real(e_pos(3,:)));
+axis([-inf inf -1 1])
+grid on
+
 figure(3)
-subplot(4,1,1)
-h4 = plot(real(e_att(1,:)));
+cla
+subplot(3,1,1)
+h7 = plot(real(e_att(1,:)));
 axis([-inf inf -pi pi])
 grid on
-title('Quaternion Dead-Reckoning Error')
-subplot(4,1,2)
-h5 = plot(real(e_att(2,:)));
+title('Attitude Dead-Reckoning Error')
+subplot(3,1,2)
+h8 = plot(real(e_att(2,:)));
 axis([-inf inf -pi pi])
 grid on
-subplot(4,1,3)
-h6 = plot(real(e_att(3,:)));
+subplot(3,1,3)
+h9 = plot(real(e_att(3,:)));
 axis([-inf inf -pi pi])
 grid on
-subplot(4,1,4)
-%h7 = plot(real(e_att(3,:)));
-axis([-inf inf -pi pi])
-grid on
+
 pause(eps)
 
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
-while norm(delta) > TOL && iter < 100 && delta_cost > 1e-2
+while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_att] = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+    [e, e_pos, e_vel, e_att] = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
         
     cost = 0.5*(e.'*e)
     
@@ -137,10 +153,12 @@ while norm(delta) > TOL && iter < 100 && delta_cost > 1e-2
     h1.YData = e_pos(1,:);
     h2.YData = e_pos(2,:);
     h3.YData = e_pos(3,:);
-    h4.YData = e_att(1,:);
-    h5.YData = e_att(2,:);
-    h6.YData = e_att(3,:);
-   % h7.YData = e_att(4,:);
+    h4.YData = e_vel(1,:);
+    h5.YData = e_vel(2,:);
+    h6.YData = e_vel(3,:);
+    h7.YData = e_att(1,:);
+    h8.YData = e_att(2,:);
+    h9.YData = e_att(3,:);
     pause(0.0001)
     
     % compute Jacobians
@@ -151,9 +169,9 @@ while norm(delta) > TOL && iter < 100 && delta_cost > 1e-2
         A_phia = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
 
         f_Cmg = @(C) errorDeadReckoning(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
-        A_phig = complexStepJacobianLie(f_Cmg,C_ma,3,@CrossOperator,'direction','left');
+        A_phig = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
 
-        A = [A,A_phia, A_phig];
+        A = [A, A_phia, A_phig];
         phi_indices = indx_counter:indx_counter+5;
         indx_counter = indx_counter + 6;
     end
@@ -161,15 +179,15 @@ while norm(delta) > TOL && iter < 100 && delta_cost > 1e-2
     if bias
         f_bias = @(b) errorDeadReckoning(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
         A_bias = complexStepJacobian(f_bias, [bias_a;bias_g]);
-        A = [A,A_bias];
+        A = [A, A_bias];
         bias_indices = indx_counter:indx_counter + 5;
         indx_counter = indx_counter + 6;
     end
     
     if scale
         f_scale = @(s) errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, s(1:3), s(4:6), skew_a, skew_g, C_ae, dataSynced, params);
-        A_scale = complexStepJacobian(f_scale, [bias_a;bias_g]);
-        A = [A,A_scale];
+        A_scale = complexStepJacobian(f_scale, [scale_a;scale_g]);
+        A = [A, A_scale];
         scale_indices = indx_counter:indx_counter + 5;
         indx_counter = indx_counter + 6;
     end
@@ -196,7 +214,7 @@ while norm(delta) > TOL && iter < 100 && delta_cost > 1e-2
         delta = 1e-16
     else
         % Compute step direction
-        if iter > 5
+        if iter > 10
             delta = -(A.'*A + 0.5*diag(diag(A.'*A))) \ (A.' * e);
         else
             delta = -(A.'*A) \( A.' * e);
@@ -354,7 +372,8 @@ ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [error, error_position, error_velocity] = errorDeadReckoning(...
+function [error, error_position, error_velocity, error_attitude] = ...
+    errorDeadReckoning(...
     C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, skew_a, skew_g, C_ae,...
     dataSynced, params ...
     ) 
@@ -453,7 +472,7 @@ function [error, error_position, error_velocity] = errorDeadReckoning(...
     error_velocity = error_velocity(:,all(~isnan(error_velocity),1));
     error_attitude = error_attitude(:,all(~isnan(error_attitude),1));
     
-    error = [error_position(:); error_velocity(:); error_attitude(:)];
+    error = [error_position(:); error_velocity(:); 10*error_attitude(:)];
 end
 
 % function AB = matmul3d(A,B)

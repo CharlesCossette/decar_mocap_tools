@@ -12,22 +12,19 @@ function mocap_play(dataMocap)
     ani = Animation();
     for lv1 = 1:numel(rigidBodies)
         rgb = rigidBodies{lv1};
-        box = AnimatedBox();
-        box.faceColor = [1 0 0];
-        box.width = 0.0254*4;
-        box.length = 1.80;
-        box.height = 0.0254*2;
-        ani.addElement(box);
+        triad = AnimatedTriad();
+        ani.addElement(triad);
     end
-    
+    figure(1)
+    clf
     ani.build()
-    axis([-4 4 -2.5 2.5 0 3])
-    %axis([-10 10 -10 10 -10 10])
+    %axis([-4 4 -2.5 2.5 0 3])
+    axis([-10 10 -10 10 -10 10]*0.5)
     xlabel('$x$ (m)','interpreter','latex','fontsize',15)
     ylabel('$y$ (m)','interpreter','latex','fontsize',15)
     zlabel('$z$ (m)','interpreter','latex','fontsize',15)
     rgb = rigidBodies{1};
-    for lv1 = 1:numel(rgb.t)
+    for lv1 = 1:10:numel(rgb.t)
         r = zeros(3,numel(rigidBodies));
         C = repmat(eye(3),1,1,numel(rigidBodies));
         for lv2 = 1:numel(rigidBodies)
@@ -36,6 +33,6 @@ function mocap_play(dataMocap)
             C(:,:,lv2) = rgb.C_ba(:,:,lv1);
         end
         ani.update(r,C);
-        pause(eps)
+        drawnow;
     end
 end

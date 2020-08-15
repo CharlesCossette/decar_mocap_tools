@@ -183,11 +183,6 @@ end
 %           the Mocap coverage area.
 
 % User-defined parameters
-% TODO: 1) decide whether it's worth having these as inputs to the function
-thresDiff = 1; % the maximum gap in seconds in which two sets of missing
-% data are considered to belong to the same time range
-bufferSize = 1; % the size of the gap before and after missing data to be
-% considered as missing data as well. Defined in seconds.
 
 % TODO: some gaps not being detected (i.e. gap of length 1, see
 % test_dataset9)
@@ -195,20 +190,7 @@ objectNames = fieldnames(S);
 objectNum   = length(objectNames);
 for lv1=1:1:objectNum
     object = S.(objectNames{lv1});
-    t      = object.t';
-    
-    % Extract the waypoints based on the Mocap readings.
-    if strcmp(object.type, 'Rigid Body')
-        waypointsIter = [object.r_zw_a; object.q_ba];
-    else
-        waypointsIter = object.r_zw_a;
-    end
-    
-    % Find timesteps where there is missing data.
-    isMissing = ~any(waypointsIter,1);
-    gapIntervals = getIntervalsFromIndices(t, isMissing, thresDiff, bufferSize);
-
-    S.(objectNames{lv1}).gapIntervals = gapIntervals;
+    S.(objectNames{lv1}).gapIntervals = mocapGetGapIntervals(object);
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.

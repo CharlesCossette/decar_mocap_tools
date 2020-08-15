@@ -23,12 +23,12 @@ for lv1=1:1:numel(rigidBodies)
     % ensure it is actually a rigid body and not a marker
     if strcmp(dataMocap.(bodyName{1}).type, 'Rigid Body')
         
-        t = dataMocap.(bodyName{1}).t';
+        t = dataMocap.(bodyName{1}).t(:);
         waypoints = [dataMocap.(bodyName{1}).r_zw_a;
             dataMocap.(bodyName{1}).q_ba];
         
         % remove waypoints with missing data
-        t = t(:, any(waypoints,1));
+        t = t(any(waypoints,1));
         waypoints = waypoints(:, any(waypoints,1));
       
         % reduce the number of points to speed up the process of fitting a B-spline.

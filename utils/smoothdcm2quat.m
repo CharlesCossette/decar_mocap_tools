@@ -1,6 +1,6 @@
 function q_ba = smoothdcm2quat(C_ba)
-%SMOOTHDCM2QUAT Converts a batch of DCMs to quaternions will avoiding
-%discontinuities.
+%SMOOTHDCM2QUAT Converts a batch of DCMs to quaternions while avoiding
+% discontinuities.
 % Inputs:
 % --------
 % C_ba: [3 x 3 x N] double
