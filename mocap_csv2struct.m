@@ -181,9 +181,7 @@ end
 
 %% Step 4 - For each ID, extract time range where the object was outside
 %           the Mocap coverage area.
-
-% User-defined parameters
-
+% TODO: add visualization for this
 % TODO: some gaps not being detected (i.e. gap of length 1, see
 % test_dataset9)
 objectNames = fieldnames(S);
@@ -194,6 +192,7 @@ for lv1=1:1:objectNum
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
+% TODO: add visualization for this
 objectNames = fieldnames(S);
 objectNum   = length(objectNames);
 stdDevThreshold = 0.001;

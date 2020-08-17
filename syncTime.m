@@ -39,11 +39,11 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
                                               
     %% Generating the synced data
     % Move the IMU clock to the mocap clock.
+    
     dataIMU.t = dataIMU.t - tSyncIMU + tSyncMocap;
     
     % Delete IMU data that doesnt have ground truth.
     isOutsideMocap = (dataIMU.t < 0) | (dataIMU.t > t_mocap(end));
-    %isOutsideMocap = false(size(dataIMU.t));
     t_synced = dataIMU.t(~isOutsideMocap);
     imu_acc_synced = dataIMU.accel(:,~isOutsideMocap);
     imu_gyr_synced = dataIMU.gyro(:,~isOutsideMocap);
@@ -97,5 +97,5 @@ function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
     [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced + dt, g_a);
     error_accel = vecnorm(mocap_acc) - vecnorm(imu_accel);
     error_gyro = vecnorm(mocap_gyro) - vecnorm(imu_gyro);
-    output = [0*error_accel(:); error_gyro(:)];
+    output = [error_accel(:); error_gyro(:)];
 end

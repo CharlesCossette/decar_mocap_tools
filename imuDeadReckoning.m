@@ -32,6 +32,7 @@ switch method
         trajectory.r_zw_a = x_euler(:,1:3).';
         trajectory.v_zwa_a = x_euler(:,4:6).';
         trajectory.q_ba = x_euler(:,7:10).';
+        trajectory.C_ba = quat2dcmimag(trajectory.q_ba.');
     case 'rk4'
         % Integrate the quaternion-based continuous time IMU equations
         % using an Runge-Kutta 4th order discretization scheme, with a
@@ -56,6 +57,7 @@ switch method
         trajectory.r_zw_a = x_rk4(:,1:3).';
         trajectory.v_zwa_a = x_rk4(:,4:6).';
         trajectory.q_ba = x_rk4(:,7:10).';
+        trajectory.C_ba = quat2dcmimag(trajectory.q_ba.');
     case 'so3'
         % Integrate the DCM-based IMU equations using an euler
         % discretization scheme. 

@@ -81,54 +81,54 @@ end
 
 
 % compute error vector once
-[~, e_pos, e_vel, e_att] = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+[~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
 
 figure(1)
 cla
 subplot(3,1,1)
 h1 = plot(real(e_pos(1,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 title('Position Dead-Reckoning Error')
 grid on
 subplot(3,1,2)
 h2 = plot(real(e_pos(2,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 grid on
 subplot(3,1,3)
 h3 = plot(real(e_pos(3,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 grid on
 
 figure(2)
 cla
 subplot(3,1,1)
 h4 = plot(real(e_vel(1,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 title('Velocity Dead-Reckoning Error')
 grid on
 subplot(3,1,2)
 h5 = plot(real(e_vel(2,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 grid on
 subplot(3,1,3)
 h6 = plot(real(e_vel(3,:)));
-axis([-inf inf -1 1])
+%axis([-inf inf -1 1])
 grid on
 
 figure(3)
 cla
 subplot(3,1,1)
 h7 = plot(real(e_att(1,:)));
-axis([-inf inf -pi pi])
+%axis([-inf inf -pi pi])
 grid on
 title('Attitude Dead-Reckoning Error')
 subplot(3,1,2)
 h8 = plot(real(e_att(2,:)));
-axis([-inf inf -pi pi])
+%axis([-inf inf -pi pi])
 grid on
 subplot(3,1,3)
 h9 = plot(real(e_att(3,:)));
-axis([-inf inf -pi pi])
+%axis([-inf inf -pi pi])
 grid on
 
 pause(eps)
@@ -136,11 +136,11 @@ pause(eps)
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
-while norm(delta) > TOL && iter < 100 && delta_cost > TOL 
+while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, e_att] = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+    [e, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
     assert(all(size(e_pos) == size(e_vel)));
     assert(all(size(e_pos) == size(e_att)));    
     
@@ -167,10 +167,15 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     A = [];
     
     if frames
-        f_Cma = @(C) errorDeadReckoning(C, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+        f_Cma = @(C) imuDeadReckoningError(C, C_mg, bias_a, bias_g,...
+                                           scale_a, scale_g, skew_a, skew_g,...
+                                           C_ae, dataSynced, params);
+                                       
         A_phia = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
 
-        f_Cmg = @(C) errorDeadReckoning(C_ma, C, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+        f_Cmg = @(C) imuDeadReckoningError(C_ma, C, bias_a, bias_g,...
+                                           scale_a, scale_g, skew_a, skew_g,...
+                                           C_ae, dataSynced, params);
         A_phig = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
 
         A = [A, A_phia, A_phig];
@@ -179,7 +184,9 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     end
     
     if bias
-        f_bias = @(b) errorDeadReckoning(C_ma, C_mg, b(1:3), b(4:6), scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+        f_bias = @(b) imuDeadReckoningError(C_ma, C_mg, b(1:3), b(4:6),...
+                                            scale_a, scale_g, skew_a, skew_g,...
+                                            C_ae, dataSynced, params);
         A_bias = complexStepJacobian(f_bias, [bias_a;bias_g]);
         A = [A, A_bias];
         bias_indices = indx_counter:indx_counter + 5;
@@ -187,7 +194,9 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     end
     
     if scale
-        f_scale = @(s) errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, s(1:3), s(4:6), skew_a, skew_g, C_ae, dataSynced, params);
+        f_scale = @(s) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
+                                             s(1:3), s(4:6), skew_a, skew_g,...
+                                             C_ae, dataSynced, params);
         A_scale = complexStepJacobian(f_scale, [scale_a;scale_g]);
         A = [A, A_scale];
         scale_indices = indx_counter:indx_counter + 5;
@@ -195,7 +204,9 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     end
     
     if skew
-        f_skew = @(s) errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, s(1:3), s(4:6), C_ae, dataSynced, params);
+        f_skew = @(s) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
+                                            scale_a, scale_g, s(1:3), s(4:6),...
+                                            C_ae, dataSynced, params);
         A_skew = complexStepJacobian(f_skew, [skew_a;skew_g]);
         A = [A, A_skew];
         skew_indices = indx_counter:indx_counter + 5;
@@ -203,7 +214,9 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
     end
     
     if grav
-        f_Cae = @(C) errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C, dataSynced, params);
+        f_Cae = @(C) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
+                                           scale_a, scale_g, skew_a, skew_g,...
+                                           C, dataSynced, params);
         f_phiae = @(phi) f_Cae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phiae = complexStepJacobian(f_phiae,[0;0]);
         A = [A, A_phiae];
@@ -261,7 +274,8 @@ while norm(delta) > TOL && iter < 100 && delta_cost > TOL
 end
 
 % compute error vector
-e = errorDeadReckoning(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+e = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g,...
+                          skew_a, skew_g, C_ae, dataSynced, params);
 RMSE = sqrt((e.'*e)./length(dataSynced.t));
 disp(['RMSE After Calibration: ' , num2str(RMSE)])
 
@@ -359,135 +373,7 @@ xlabel('Iteration Number', 'Interpreter', 'Latex')
 ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [error, error_position, error_velocity, error_attitude] = ...
-    errorDeadReckoning(...
-    C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae,...
-    dataSynced, params ...
-    ) 
-% ERRORDEADRECKONING Corrects the IMU with the provided calibration
-% parameters, then integrates the data forward on specific intervals.
-% Returns the error between the integrated solution and the ground truth.
-    
-    % Extract some relevant information and parameters.
-    isGap = dataSynced.gapIndices;
-    isStatic = dataSynced.staticIndices;   
-    interval_size = params.interval_size;
-    batch_size = params.batch_size;
-    min_index = params.min_index;
-    max_index = params.max_index;
-    
-    calib_params.C_ms_accel = C_ma;
-    calib_params.C_ms_gyro = C_mg;
-    calib_params.bias_accel = bias_a;
-    calib_params.bias_gyro = bias_g;
-    calib_params.scale_accel = scale_a;
-    calib_params.scale_gyro = scale_g;
-    calib_params.skew_accel = skew_a;
-    calib_params.skew_gyro = skew_g;
-   
-    data_corrected = imuCorrectMeasurements(dataSynced, calib_params);
-    
-    % Corrected gravity in the mocap world frame.
-    g_e = [0;0;-9.80665];
-    g_a = C_ae*g_e;
-    
-    % Go through each interval and dead-reckon for a small duration of
-    % length batch_size. Compare results to ground truth.
-    error_position = nan(3,length(dataSynced.t));
-    error_velocity = nan(3,length(dataSynced.t));
-    error_attitude = nan(3,length(dataSynced.t));
-    error_accel = nan(3,length(dataSynced.t));
-    error_omega = nan(3,length(dataSynced.t));
-    for lv1 = min_index:interval_size:(max_index + 1 - interval_size)        
-        N = batch_size;
-        idx = lv1:lv1 + N -1;
-        idx = idx(:);
-        isStaticInBatch = idx(:).*isStatic(idx);
-        isStaticInBatch = isStaticInBatch(isStaticInBatch ~= 0);
-        
-        % Initial conditions from mocap (if we detected static, force zero
-        % velocity).
-        r_zw_a_0 = dataSynced.r_zw_a(:,lv1);
-        if isStatic(lv1)
-            v_zwa_a_0 = zeros(3,1);
-        else
-            v_zwa_a_0 = dataSynced.v_zwa_a(:,lv1);
-        end
-        C_ba_0 = dataSynced.C_ba(:,:,lv1);
-        t_span = dataSynced.t(idx);
-        traj_dr = imuDeadReckoning(data_corrected, r_zw_a_0, v_zwa_a_0, C_ba_0,...
-                                   g_a, 'so3',t_span);
-        
-        % Build errors. If static, force zero as the reference. 
-        error_position(:,idx) = dataSynced.r_zw_a(:,idx) - traj_dr.r_zw_a;
-        error_velocity(:,idx) = dataSynced.v_zwa_a(:,idx) - traj_dr.v_zwa_a;
-        error_velocity(:,isStaticInBatch) = error_velocity(:,isStaticInBatch) ...
-                                        - dataSynced.v_zwa_a(:,isStaticInBatch);
-        error_accel(:,idx) = dataSynced.a_zwa_a(:,idx) - traj_dr.a_zwa_a;
-        error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
-        for lv2 = 1:N
-            % Index in the actual dataSynced timeseries.
-            idxData = lv2 + lv1 -1;
-            error_attitude(:,idxData) = DCM_TO_ROTVEC((traj_dr.C_ba(:,:,lv2)...
-                                              *dataSynced.C_ba(:,:,idxData).'));
-        end
 
-    end
-    
-    % Add weight when static. 
-    error_position(:,isStatic) = error_position(:,isStatic);
-    error_velocity(:,isStatic) = 100*error_velocity(:,isStatic);
-    error_attitude(:,isStatic) = error_attitude(:,isStatic);
-    
-    
-    % Discard any corresponding to gaps in the mocap data, as the spline is
-    % potentially inaccurate during these times. 
-    error_position = error_position(:,~isGap);
-    error_velocity = error_velocity(:,~isGap);
-    error_attitude = error_attitude(:,~isGap);
-    error_accel = error_accel(:,~isGap);
-    error_omega = error_omega(:,~isGap);
-    
-    % Remove any NANs, which are periods for which we are not
-    % dead-reckoning.
-    % Warning: potential silent failing here if the indexing is not done
-    % properly.... NANs will just get deleted.
-    error_position = error_position(:,all(~isnan(error_position),1));
-    error_velocity = error_velocity(:,all(~isnan(error_velocity),1));
-    error_attitude = error_attitude(:,all(~isnan(error_attitude),1));
-    error_accel = error_accel(:,all(~isnan(error_attitude),1));
-    error_omega = error_omega(:,all(~isnan(error_attitude),1));
-    
-    phi_ma = DCM_TO_ROTVEC(C_ma);
-    phi_mg = DCM_TO_ROTVEC(C_mg);
-    error_regularize = [phi_ma;
-                        phi_mg;
-                        0.1*bias_a;
-                        bias_g;
-                        ones(3,1) - scale_a;
-                        ones(3,1) - scale_g;
-                        skew_a;
-                        skew_g];
-                        
-                        
-    error = [
-             error_position(:);
-             error_velocity(:);
-             10*error_attitude(:);
-             error_accel(:);
-             error_omega(:);
-             %sqrt(size(error_position,2))*error_regularize
-             ];
-end
-
-% function AB = matmul3d(A,B)
-% AB = zeros(size(A,1),size(B,2),size(A,3));
-% for lv1 = 1:size(A,3)
-%     AB(:,:,lv1) = A(:,:,lv1)*B(:,:,lv1);
-% end
-% end
-    
 
 
 

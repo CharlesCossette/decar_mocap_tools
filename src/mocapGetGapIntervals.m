@@ -5,7 +5,7 @@ thresDiff = 1; % the maximum gap in seconds in which two sets of missing
 bufferSize = 1; % the size of the gap before and after missing data to be
 % considered as missing data as well. Defined in seconds.
 
-t      = object.t';
+t      = object.t.';
 
 % Extract the waypoints based on the Mocap readings.
 if strcmp(object.type, 'Rigid Body')

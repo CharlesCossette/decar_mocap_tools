@@ -36,7 +36,7 @@ options.frames = true;
 options.bias = true;
 options.scale = true;
 options.skew = false;
-options.grav = true;
+options.grav = false;
 [results, dataCalibrated] = calibrateImu(dataAligned, options)
 
 
@@ -68,7 +68,7 @@ axis vis3d
 axis equal
 legend('Dead-Reckon Solution','Ground Truth','RK4 Dead-Reckoning')
 title('Position')
-axis([-1 4 -2 2 0 3])
+%axis([-1 4 -2 2 0 3])
 xlabel('x')
 ylabel('y')
 zlabel('z')

@@ -19,7 +19,7 @@ params.mocap_frequency = 120;
 params.imu_frequency = 250;
 [dataMocap, dataIMU] = simulateTestData(params);
 
-
+%%
 windowSize = 2;
 stdDevThreshold = 0.002;
 staticIntervals = mocapGetStaticIntervals(dataMocap.RigidBody,windowSize,stdDevThreshold);
