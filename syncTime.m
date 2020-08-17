@@ -40,6 +40,10 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     index_synced       = [];
     t_synced           = [];
     
+    % TODO: why is this necessary, why can we not just modify the
+    % timestamps of the IMU measurements so that they are the time in the
+    % mocap clock? Negative values are fine. 
+    
     % Find the timesteps in the Mocap time reference and its corresponding
     % index in the IMU data
     for lv1=1:length(dataIMU.t)
@@ -56,20 +60,28 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     end
 
     % Find IMU measurement timestamps to the Mocap clock
-    IMU_acc_synced     = zeros(3,length(t_synced));
-    IMU_gyr_synced     = zeros(3,length(t_synced));
+    imu_acc_synced     = zeros(3,length(t_synced));
+    imu_gyr_synced     = zeros(3,length(t_synced));
     for lv1=1:length(t_synced)
         indx = index_synced(lv1);
-        IMU_acc_synced(:,lv1) = dataIMU.accel(:,indx);
-        IMU_gyr_synced(:,lv1) = dataIMU.gyro(:,indx);
+        imu_acc_synced(:,lv1) = dataIMU.accel(:,indx);
+        imu_gyr_synced(:,lv1) = dataIMU.gyro(:,indx);
     end
     
     % Emulate accelerometer and gyroscope measurements at required timesteps.
+    %[mocap_acc_synced, mocap_omega_synced, dataSynced] = getFakeImuMocap(splineStruct, t_synced, g_a);
+    
+    % Refine further using least-squares
+    f = @(dt) error(dt, t_synced, splineStruct, imu_acc_synced, imu_gyr_synced);
+    options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt','display','iter-detailed','steptolerance',1e-8);
+    dt = lsqnonlin(f,0);
+    
+    t_synced = t_synced + dt;
     [mocap_acc_synced, mocap_omega_synced, dataSynced] = getFakeImuMocap(splineStruct, t_synced, g_a);
     
     %% Visualizing the time synchronization
     figure
-    plot(t_synced, vecnorm(IMU_acc_synced))
+    plot(t_synced, vecnorm(imu_acc_synced))
     hold on
     plot(t_synced, vecnorm(mocap_acc_synced))
     hold off
@@ -79,7 +91,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     legend('IMU Data','Mocap Data')
     
     figure
-    plot(t_synced, vecnorm(IMU_gyr_synced))
+    plot(t_synced, vecnorm(imu_gyr_synced))
     hold on
     plot(t_synced, vecnorm(mocap_omega_synced))
     hold off   
@@ -90,8 +102,8 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     title('Angular Velocity')
     %% Save the synchronized data
     dataSynced.t          = t_synced;
-    dataSynced.accIMU     = IMU_acc_synced;
-    dataSynced.omegaIMU   = IMU_gyr_synced;
+    dataSynced.accIMU     = imu_acc_synced;
+    dataSynced.omegaIMU   = imu_gyr_synced;
     dataSynced.accMocap   = mocap_acc_synced;
     dataSynced.omegaMocap = mocap_omega_synced;
     
@@ -101,4 +113,12 @@ eta = q_ba(1);
 epsilon = q_ba(2:4);
 S = [-2*epsilon, 2*(eta*eye(3) - CrossOperator(epsilon))];
 omega_ba_b = S*q_ba_dot;
+end
+
+function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
+    g_a = [0;0;-9.80665];
+    [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced + dt, g_a);
+    error_accel = vecnorm(mocap_acc) - vecnorm(imu_accel);
+    error_gyro = vecnorm(mocap_gyro) - vecnorm(imu_gyro);
+    output = [error_accel(:); error_gyro(:)];
 end
