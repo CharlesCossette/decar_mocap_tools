@@ -19,38 +19,17 @@ params.mocap_frequency = 120;
 params.imu_frequency = 250;
 [dataMocap, dataIMU] = simulateTestData(params);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Use RK4 and simple Euler integration for dead-reckoning.
-f = @(t,x) imuDeadReckoningODE(t,x,dataIMU.t, dataIMU.accel, ...
-                               dataIMU.gyro, params.mocap_gravity);                    
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%               
 t_span = dataIMU.t;
-C_ba_0 = eye(3);
-q_ba_0 = dcm2quat(dataMocap.RigidBody.C_ba(:,:,1));
-x_0 = [dataMocap.RigidBody.r_zw_a(:,1); 0;0;0;q_ba_0.'];
-options.indices_to_normalize = 7:10;
-
-[~, x_rk4] = ode4(f, t_span, x_0, options);
-[~, x_euler] = ode1(f, t_span, x_0, options);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Use SO(3)-based Euler integration
-N = length(dataIMU.t);
-r_zw_a_so3 = zeros(3,N);
-v_zwa_a_so3 = zeros(3,N);
-C_ba_so3 = zeros(3,3,N);
-r_zw_a_so3(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
-C_ba_so3(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
+r_zw_a_0 = dataMocap.RigidBody.r_zw_a(:,1); 
+v_zwa_a_0 = [0;0;0];
+C_ba_0 = dataMocap.RigidBody.C_ba(:,:,1);
 g_a = params.mocap_gravity;
-a_zwa_a_so3 = zeros(3,N);
-for lv1 = 1:N-1
-    dt = dataIMU.t(lv1+1) - dataIMU.t(lv1);
-    omega_ba_b = dataIMU.gyro(:,lv1);
-    a_zwa_b = dataIMU.accel(:,lv1);
-    C_ba_so3(:,:,lv1+1) = expm(-CrossOperator(omega_ba_b*dt))*C_ba_so3(:,:,lv1);
-    v_zwa_a_so3(:,lv1+1) = v_zwa_a_so3(:,lv1) + (C_ba_so3(:,:,lv1).'*a_zwa_b + g_a)*dt;
-    r_zw_a_so3(:,lv1+1) = r_zw_a_so3(:,lv1) + v_zwa_a_so3(:,lv1)*dt;
-    a_zwa_a_so3(:,lv1) = C_ba_so3(:,:,lv1).'*a_zwa_b + g_a;
-end
+
+traj_rk4 = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'rk4',t_span);
+traj_euler = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'euler',t_span);
+traj_so3 = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'so3');
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TODO: Add some asserts
@@ -60,8 +39,9 @@ end
 % Position
 close all
 figure(1)
-r_zw_a_rk4 = x_rk4(:,1:3).';
-r_zw_a_euler = x_euler(:,1:3).';
+r_zw_a_rk4 = traj_rk4.r_zw_a;
+r_zw_a_euler = traj_euler.r_zw_a;
+r_zw_a_so3 = traj_so3.r_zw_a;
 r_zw_a_gt = dataMocap.RigidBody.r_zw_a;
 plot3(r_zw_a_gt(1,:), r_zw_a_gt(2,:), r_zw_a_gt(3,:),'LineWidth',2)
 hold on
@@ -80,16 +60,16 @@ grid on
 % Attitude 
 figure(3)
 phi_ba_gt = DCM_TO_ROTVEC(dataMocap.RigidBody.C_ba);
-phi_ba_so3 = DCM_TO_ROTVEC(C_ba_so3);
-phi_ba_rk4 = DCM_TO_ROTVEC(quat2dcm(x_rk4(:,7:10)));
-phi_ba_euler = DCM_TO_ROTVEC(quat2dcm(x_euler(:,7:10)));
+phi_ba_so3 = DCM_TO_ROTVEC(traj_so3.C_ba);
+phi_ba_rk4 = DCM_TO_ROTVEC(quat2dcm(traj_rk4.q_ba.'));
+phi_ba_euler = DCM_TO_ROTVEC(quat2dcm(traj_euler.q_ba.'));
 
 subplot(3,1,1)
 plot(dataMocap.RigidBody.t,phi_ba_gt(1,:))
 hold on
 plot(dataIMU.t, phi_ba_so3(1,:))
-plot(t_span, phi_ba_rk4(1,:))
-plot(t_span, phi_ba_euler(1,:))
+plot(dataIMU.t, phi_ba_rk4(1,:))
+plot(dataIMU.t, phi_ba_euler(1,:))
 hold off
 grid on
 title('Attitude Dead-Reckoning Results')
@@ -99,8 +79,8 @@ subplot(3,1,2)
 plot(dataMocap.RigidBody.t,phi_ba_gt(2,:))
 hold on
 plot(dataIMU.t, phi_ba_so3(2,:))
-plot(t_span, phi_ba_rk4(2,:))
-plot(t_span, phi_ba_euler(2,:))
+plot(dataIMU.t, phi_ba_rk4(2,:))
+plot(dataIMU.t, phi_ba_euler(2,:))
 hold off
 grid on
 
@@ -108,8 +88,8 @@ subplot(3,1,3)
 plot(dataMocap.RigidBody.t,phi_ba_gt(3,:))
 hold on
 plot(dataIMU.t, phi_ba_so3(3,:))
-plot(t_span, phi_ba_rk4(3,:))
-plot(t_span, phi_ba_euler(3,:))
+plot(dataIMU.t, phi_ba_rk4(3,:))
+plot(dataIMU.t, phi_ba_euler(3,:))
 hold off
 grid on
 

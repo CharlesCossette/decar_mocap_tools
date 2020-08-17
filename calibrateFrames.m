@@ -184,35 +184,7 @@ RMSE = sqrt((e.'*e)./length(dataSynced.t));
 disp(['RMSE After Calibration: ' , num2str(RMSE)])
 
 %% Results and Output
-% Calibrated Accelerometer measurements
-T_skew = eye(3);
-T_skew(1,2) = -skew_a(3);
-T_skew(1,3) =  skew_a(2);
-T_skew(2,3) = -skew_a(1);
-accIMU_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU + bias_a);
-
-% Calibrated Gyroscope measurements
-T_skew = eye(3);
-T_skew(1,2) = -skew_g(3);
-T_skew(1,3) =  skew_g(2);
-T_skew(2,3) = -skew_g(1);
-omegaIMU_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU + bias_g);
-
-% Calibrated ground truth accel/gyro measurements.
 g_e = [0;0;-9.80665];
-g_a = C_ae*g_e;
-mocap_gyro = dataSynced.omegaMocap;
-mocap_accel = zeros(3, length(dataSynced.t));
-for lv1 = 1:length(dataSynced.t)
-    mocap_accel(:,lv1) = dataSynced.accMocap(:,lv1) - dataSynced.C_ba(:,:,lv1)*(g_a - g_e);
-end
-
-dataCalibrated.t = dataSynced.t;
-dataCalibrated.accMocap = mocap_accel;
-dataCalibrated.omegaMocap = mocap_gyro;
-dataCalibrated.accIMU = accIMU_calibrated;
-dataCalibrated.omegaIMU = omegaIMU_calibrated;
-
 results.C_ms_accel = C_ma;
 results.C_ms_gyro = C_mg;
 results.bias_accel = bias_a;
@@ -222,6 +194,35 @@ results.scale_gyro = scale_g;
 results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
+
+% % Calibrated Accelerometer measurements
+% T_skew = eye(3);
+% T_skew(1,2) = -skew_a(3);
+% T_skew(1,3) =  skew_a(2);
+% T_skew(2,3) = -skew_a(1);
+% accIMU_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU + bias_a);
+% 
+% % Calibrated Gyroscope measurements
+% T_skew = eye(3);
+% T_skew(1,2) = -skew_g(3);
+% T_skew(1,3) =  skew_g(2);
+% T_skew(2,3) = -skew_g(1);
+% omegaIMU_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU + bias_g);
+
+
+dataCalibrated = imuCorrectMeasurements(dataSynced, results);
+
+% Calibrated ground truth accel/gyro measurements.
+g_a = results.g_a;
+mocap_gyro = dataSynced.omegaMocap;
+mocap_accel = zeros(3, length(dataSynced.t));
+for lv1 = 1:length(dataSynced.t)
+    mocap_accel(:,lv1) = dataSynced.accMocap(:,lv1) - dataSynced.C_ba(:,:,lv1)*(g_a - g_e);
+end
+
+dataCalibrated.t = dataSynced.t;
+dataCalibrated.accMocap = mocap_accel;
+dataCalibrated.omegaMocap = mocap_gyro;
 
 %% Plotting to evaluate performance visually
 % Plot calibrated data - accelerometers

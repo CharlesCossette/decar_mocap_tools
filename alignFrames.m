@@ -50,8 +50,8 @@ function [dataAligned, C_am, C_gm] = alignFrames(dataSynced, rightHandedOnly)
     C_mg_best
     
     dataAligned = dataSynced;
-    dataAligned.accIMU = C_ma_best*dataSynced.accIMU;
-    dataAligned.omegaIMU = C_mg_best*dataSynced.omegaIMU;
+    dataAligned.accel = C_ma_best*dataSynced.accel;
+    dataAligned.gyro = C_mg_best*dataSynced.gyro;
     C_am = C_ma_best;
     C_gm = C_mg_best;
         
@@ -59,11 +59,11 @@ end
 
 function output = computeErrorAccel(C_ms,dataSynced)
     gaps = dataSynced.gapIndices;
-    error_accel = dataSynced.accMocap(:,~gaps) - C_ms*dataSynced.accIMU(:,~gaps);
+    error_accel = dataSynced.accel_mocap(:,~gaps) - C_ms*dataSynced.accel(:,~gaps);
     output = error_accel(:);
 end
 function output = computeErrorGyro(C_ms,dataSynced)
     gaps = dataSynced.gapIndices;
-    error_omega = dataSynced.omegaMocap(:,~gaps) - C_ms*dataSynced.omegaIMU(:,~gaps);
+    error_omega = dataSynced.gyro_mocap(:,~gaps) - C_ms*dataSynced.gyro(:,~gaps);
     output = error_omega(:);
 end
