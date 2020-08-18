@@ -134,13 +134,12 @@ for lv1 = 1:numel(IDs)
         % to quaternions, is that it introduces discontinuities in the
         % quaternion trajectory due to their ambiguous nature.
         %
-        % Notation: Quaternions are represented as q = [eta; epsilon] where
+        % Notation: Quaternions are represented as q = [epsilon; eta] where
         % eta is the vector part.
         q_aaprime = 0.5*ones(4,1); % Quaternion corresponding to C_aa'
-        S.(name).q_ba =  quatmul(q_ba_mocap, q_aaprime);
+        S.(name).q_ba =  quatMult(q_ba_mocap, q_aaprime);
         
-        % REQUIRES AEROSPACE TOOLBOX
-        S.(name).C_ba = quat2dcm(S.(name).q_ba.');
+        S.(name).C_ba = quatToDcm(S.(name).q_ba);
         
         % Now, we will check if the silly user set the mocap body frame to
         % have a y-axis be up. Fix it for them if they did that. Shame!
@@ -157,8 +156,8 @@ for lv1 = 1:numel(IDs)
             disp(['This correction will be made automatically, assuming',...
                 ' that the Y-axis was in fact the up/vertical one.']);
             q_bprimeb = [-0.5;0.5;0.5;0.5];
-            S.(name).q_ba = quatmul(q_bprimeb,S.(name).q_ba);
-            S.(name).C_ba = quat2dcm(S.(name).q_ba.');
+            S.(name).q_ba = quatMult(q_bprimeb,S.(name).q_ba);
+            S.(name).C_ba = quatToDcm(S.(name).q_ba);
             
             % Repeat the test again, make sure the problem is fixed.
             for lv2 = 1:size(r_up_b,2)
@@ -192,7 +191,6 @@ for lv1=1:1:objectNum
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
-% TODO: add visualization for this
 objectNames = fieldnames(S);
 objectNum   = length(objectNames);
 stdDevThreshold = 0.001;

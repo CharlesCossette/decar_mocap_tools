@@ -13,8 +13,8 @@ switch method
         % using an euler discretization scheme.
         
         % Initial conditions
-        q_ba_0 = smoothdcm2quat(C_ba_0);
-        x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0.'];
+        q_ba_0 = dcmToQuat(C_ba_0);
+        x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0];
         
         % Continuous-time imu dead reckoning equations
         f = @(t,x) imuDeadReckoningODE(t,x, dataIMU.t, dataIMU.accel, ...
@@ -27,15 +27,15 @@ switch method
         trajectory.r_zw_a = x_euler(:,1:3).';
         trajectory.v_zwa_a = x_euler(:,4:6).';
         trajectory.q_ba = x_euler(:,7:10).';
-        trajectory.C_ba = quat2dcmimag(trajectory.q_ba.');
+        trajectory.C_ba = quatToDcm(trajectory.q_ba);
     case 'rk4'
         % Integrate the quaternion-based continuous time IMU equations
         % using an Runge-Kutta 4th order discretization scheme, with a
         % zero-order hold on the IMU values between integration steps.
         
         % Initial conditions
-        q_ba_0 = smoothdcm2quat(C_ba_0);
-        x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0.'];
+        q_ba_0 = dcmToQuat(C_ba_0);
+        x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0];
         
         % Continuous-time imu dead reckoning equations
         f = @(t,x) imuDeadReckoningODE(t,x, dataIMU.t, dataIMU.accel, ...
@@ -49,7 +49,7 @@ switch method
         trajectory.r_zw_a = x_rk4(:,1:3).';
         trajectory.v_zwa_a = x_rk4(:,4:6).';
         trajectory.q_ba = x_rk4(:,7:10).';
-        trajectory.C_ba = quat2dcmimag(trajectory.q_ba.');
+        trajectory.C_ba = quatToDcm(trajectory.q_ba);
     case 'so3'
         % Integrate the DCM-based IMU equations using an euler
         % discretization scheme. 

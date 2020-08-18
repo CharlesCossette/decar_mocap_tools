@@ -36,12 +36,13 @@ clear options
 options.frames = true;
 options.bias = true;
 options.scale = true;
-options.skew = false;
-options.grav = false;
+options.skew = true;
+options.grav = true;
+options.start_index = 1;
+options.max_total_states = 20000;
 options.interval_size = 2000;
 options.batch_size = 500;
-options.max_total_states = 50000;
-[results, dataCalibrated] = calibrateImu(dataSynced,options)
+[results, dataCalibrated] = calibrateImu(dataAligned,options)
 
 %% Dead Reckon Actual Data to Test
 r_zw_a_0 = dataCalibrated.r_zw_a(:,1);

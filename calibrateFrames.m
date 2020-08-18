@@ -195,21 +195,6 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
-% % Calibrated Accelerometer measurements
-% T_skew = eye(3);
-% T_skew(1,2) = -skew_a(3);
-% T_skew(1,3) =  skew_a(2);
-% T_skew(2,3) = -skew_a(1);
-% accel_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accel + bias_a);
-% 
-% % Calibrated Gyroscope measurements
-% T_skew = eye(3);
-% T_skew(1,2) = -skew_g(3);
-% T_skew(1,3) =  skew_g(2);
-% T_skew(2,3) = -skew_g(1);
-% gyro_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.gyro + bias_g);
-
-
 dataCalibrated = imuCorrectMeasurements(dataSynced, results);
 
 % Calibrated ground truth accel/gyro measurements.

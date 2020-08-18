@@ -30,13 +30,18 @@ dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.Rigid
 dataAligned = alignFrames(dataSynced)
 
 %% Refine the DCM between the two assigned body frames
-
+clear options
 options.frames = true;
 options.bias = true;
-options.scale = false;
-options.skew = false;
+options.scale = true;
+options.skew = true;
 options.grav = true;
-[results, dataCalibrated] = calibrateFrames(dataAligned, options)
+options.start_index = 1;
+options.max_total_states = 30000;
+options.interval_size = 2000;
+options.batch_size = 2000;
+
+[results, dataCalibrated] = calibrateImu(dataAligned,options)
 %% Dead Reckon Actual Data to Test
 r_zw_a_0 = dataCalibrated.r_zw_a(:,1);
 v_zwa_a_0 = zeros(3,1); %dataCalibrated.v_zwa_a(:,1);
@@ -64,7 +69,7 @@ axis vis3d
 axis equal
 legend('Dead-Reckon Solution','Ground Truth','RK4 Dead-Reckoning')
 title('Position')
-axis([-1 4 -2 2 0 3])
+%axis([-1 4 -2 2 0 3])
 xlabel('x')
 ylabel('y')
 zlabel('z')

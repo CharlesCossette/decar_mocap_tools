@@ -17,6 +17,7 @@ params.std_dev_accel = 0;
 params.std_dev_gyro = 0;
 params.mocap_frequency = 120;
 params.imu_frequency = 250;
+params.sim_duration = 100;
 [dataMocap, dataIMU] = simulateTestData(params);
 
 %%
