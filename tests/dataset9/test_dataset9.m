@@ -22,7 +22,7 @@ dataIMU = IMU_csv2struct('2020_07_30_23_29_08_trial9_sensehat_180.csv')
 
 %% Synchronize the Mocap and IMU data
 tic
-dataSynced = syncTime(splineMocap.RigidBody, dataIMU)
+dataSynced = syncTime(splineMocap.RigidBody, dataIMU, 12)
 toc
 %% Obtain indices of gaps in mocap data, and identified stationary periods
 dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.gapIntervals);
@@ -32,12 +32,16 @@ tic
 dataAligned = alignFrames(dataSynced)
 toc
 %% Refine the DCM between the two assigned body frames
+clear options
 options.frames = true;
 options.bias = true;
 options.scale = true;
 options.skew = false;
-options.grav = true;
-[results, dataCalibrated] = calibrateImu(dataAligned, options)
+options.grav = false;
+options.interval_size = 2000;
+options.batch_size = 500;
+options.max_total_states = 50000;
+[results, dataCalibrated] = calibrateImu(dataSynced,options)
 
 %% Dead Reckon Actual Data to Test
 r_zw_a_0 = dataCalibrated.r_zw_a(:,1);

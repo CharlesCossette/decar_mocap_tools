@@ -1,4 +1,5 @@
-function q_ba_dot = omega2quatrate(q_ba, omega_ba_b)
+function q_ba_dot = omegaToQuatRate(q_ba, omega_ba_b)
+% This is not yet vectorized. But it can, and will be.
     eta = q_ba(1);
     epsilon = q_ba(2:4);
     

@@ -37,8 +37,8 @@ for lv1=1:1:numel(rigidBodies)
 
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
-        pp = spline(t,waypoints);
-        %pp = csaps(t,waypoints,0.99999995);
+        %pp = spline(t,waypoints);
+        pp = csaps(t,waypoints,0.9999995);
         %pp = fn2fm(spaps(t,waypoints,0.00001,[],2),'pp')
         
         % Saving the computed B-spline fit.

@@ -15,7 +15,7 @@ end
 if isfield(options,'tolerance')
     TOL = options.tolerance;
 else
-    TOL = 1e-9;
+    TOL = 1e-6;
 end
 if isfield(options,'frames')
     frames = options.frames;
@@ -73,17 +73,19 @@ end
 %% LS Optimization on SO(3), using Gauss-Newton
 
 % Provide an initial guess for the biases.
-if any(dataSynced.staticIndices)
-    isStatic = dataSynced.staticIndices;
-    bias_a = mean(dataSynced.accel_mocap(:,isStatic) - dataSynced.accel(:,isStatic),2);
-    bias_g = mean(dataSynced.gyro_mocap(:,isStatic) - dataSynced.gyro(:,isStatic),2);
-else
-    bias_a = [0;0;0];
-    bias_g = [0;0;0];
-end
+% if any(dataSynced.staticIndices)
+%     isStatic = dataSynced.staticIndices;
+%     bias_a = mean(dataSynced.accel_mocap(:,isStatic) - dataSynced.accel(:,isStatic),2);
+%     bias_g = mean(dataSynced.gyro_mocap(:,isStatic) - dataSynced.gyro(:,isStatic),2);
+% else
+%     bias_a = [0;0;0];
+%     bias_g = [0;0;0];
+% end
 
 % initialize
 costFuncHist = [];
+bias_a = [0;0;0];
+bias_g = [0;0;0];
 phi = [0;0;0];
 C_ma = ROTVEC_TO_DCM(phi);
 C_mg = ROTVEC_TO_DCM(phi);

@@ -81,7 +81,7 @@ function [error, error_position, error_velocity, error_attitude] = ...
     % Add weight when static. 
     error_position(:,isStatic) = error_position(:,isStatic);
     %error_velocity(:,isStatic) = 100*error_velocity(:,isStatic);
-    error_attitude(:,isStatic) = error_attitude(:,isStatic);
+    error_attitude(:,isStatic) = 10*error_attitude(:,isStatic);
     
     
     % Discard any corresponding to gaps in the mocap data, as the spline is

@@ -3,18 +3,28 @@ function mocap_play(dataMocap)
     % Extract only rigid bodies
     fieldnames = fields(dataMocap);
     rigidBodies = {};
+    markers = {};
     for lv1 = 1:numel(fieldnames)
-        if strcmp(dataMocap.(fieldnames{lv1}).type, 'Rigid Body')
-            rigidBodies = [rigidBodies; {dataMocap.(fieldnames{lv1})}];
+        switch dataMocap.(fieldnames{lv1}).type
+            case 'Rigid Body'
+                rigidBodies = [rigidBodies; {dataMocap.(fieldnames{lv1})}];
+            case 'Marker'
+                markers = [markers; {dataMocap.(fieldnames{lv1})}];
         end
+       
     end
 
     ani = Animation();
     for lv1 = 1:numel(rigidBodies)
-        rgb = rigidBodies{lv1};
         triad = AnimatedTriad();
         ani.addElement(triad);
     end
+    for lv1 = 1:numel(markers)
+        sph = AnimatedSphere();
+        sph.radius = 0.05;
+        ani.addElement(sph);
+    end
+    
     figure(1)
     clf
     ani.build()
@@ -25,12 +35,20 @@ function mocap_play(dataMocap)
     zlabel('$z$ (m)','interpreter','latex','fontsize',15)
     rgb = rigidBodies{1};
     for lv1 = 1:10:numel(rgb.t)
-        r = zeros(3,numel(rigidBodies));
-        C = repmat(eye(3),1,1,numel(rigidBodies));
+        r = zeros(3,numel(rigidBodies) + numel(markers));
+        C = repmat(eye(3),1,1,numel(rigidBodies) + numel(markers));
+        counter = 1;
         for lv2 = 1:numel(rigidBodies)
             rgb = rigidBodies{lv2};
-            r(:,lv2) = rgb.r_zw_a(:,lv1);
-            C(:,:,lv2) = rgb.C_ba(:,:,lv1);
+            r(:,counter) = rgb.r_zw_a(:,lv1);
+            C(:,:,counter) = rgb.C_ba(:,:,lv1);
+            counter = counter + 1;
+        end
+        for lv2 = 1:numel(markers)
+            marker = markers{lv2};
+            r(:,counter) = marker.r_zw_a(:,lv1);
+            C(:,:,counter) = eye(3);
+            counter = counter + 1;
         end
         ani.update(r,C);
         drawnow;
