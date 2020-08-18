@@ -21,7 +21,7 @@ C_bprimeb = [0 0 -1; 0 1 0; 1 0 0];
 for lv1 = 1:size(dataMocap.RigidBody.C_ba,3)
     dataMocap.RigidBody.C_ba(:,:,lv1) = C_bprimeb*dataMocap.RigidBody.C_ba(:,:,lv1);
 end
-dataMocap.RigidBody.q_ba = smoothdcm2quat(dataMocap.RigidBody.C_ba).';
+dataMocap.RigidBody.q_ba = dcmToQuat(dataMocap.RigidBody.C_ba);
 dataMocap.RigidBody.type = 'Rigid Body';                       
 dataMocap.RigidBody.gapIntervals = mocapGetGapIntervals(dataMocap.RigidBody);
 dataMocap.RigidBody.staticIntervals = ...
@@ -34,14 +34,14 @@ dataIMU.gyro = C_bprimeb*[dataImuRaw.w_RS_S_xrads1.';
 dataIMU.accel = C_bprimeb*[dataImuRaw.a_RS_S_xms2.';
                  dataImuRaw.a_RS_S_yms2.';
                  dataImuRaw.a_RS_S_zms2.'];
-              
+%%           
 splineMocap = mocap_fitSpline(dataMocap,[],true);
 
-dataSynced = syncTime(splineMocap.RigidBody, dataIMU)
+dataSynced = syncTime(splineMocap.RigidBody, dataIMU,12,true)
 dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.gapIntervals);
 dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.staticIntervals);
 dataAligned = alignFrames(dataSynced)
-
+%%
 options.frames = true;
 options.bias = true;
 options.scale = false;

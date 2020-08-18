@@ -50,13 +50,13 @@ end
 if isfield(options,'interval_size')
     params.interval_size = options.interval_size;
 else
-    params.interval_size = 30000;
+    params.interval_size = 2000;
 end
 
 if isfield(options,'batch_size')
     params.batch_size = options.batch_size;
 else
-    params.batch_size = 30000;
+    params.batch_size = 1000;
 end
 
 if isfield(options,'start_index')

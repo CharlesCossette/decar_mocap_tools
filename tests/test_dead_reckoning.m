@@ -13,11 +13,11 @@ params.scale_gyro = [1;1;1];
 params.skew_accel = [0;0;0];
 params.skew_gyro = [0;0;0];
 params.mocap_gravity = [0;0;-9.80665];
-params.std_dev_accel = 0;
-params.std_dev_gyro = 0;
+params.std_dev_accel = 0.1;
+params.std_dev_gyro = 0.01;
 params.mocap_frequency = 120;
 params.imu_frequency = 250;
-params.sim_duration = 40;
+params.sim_duration = 120;
 [dataMocap, dataIMU] = simulateTestData(params);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%               
@@ -26,7 +26,7 @@ r_zw_a_0 = dataMocap.RigidBody.r_zw_a(:,1);
 v_zwa_a_0 = [0;0;0];
 C_ba_0 = dataMocap.RigidBody.C_ba(:,:,1);
 g_a = params.mocap_gravity;
-
+dataIMU.accel = dataIMU.accel + [0;0.5;0];
 traj_rk4 = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'rk4',t_span);
 traj_euler = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'euler',t_span);
 traj_so3 = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, 'so3',t_span);
