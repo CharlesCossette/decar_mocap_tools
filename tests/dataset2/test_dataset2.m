@@ -44,6 +44,7 @@ options.max_total_states = 30000;
 options.interval_size = 2000;
 options.batch_size = 500;
 [results, dataCalibrated] = calibrateImu(dataAligned,options)
+
 %% Dead Reckon Actual Data to Test
 r_zw_a_0 = dataCalibrated.r_zw_a(:,1);
 v_zwa_a_0 = zeros(3,1); %dataCalibrated.v_zwa_a(:,1);

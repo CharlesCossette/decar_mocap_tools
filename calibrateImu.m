@@ -17,6 +17,7 @@ if isfield(options,'tolerance')
 else
     TOL = 1e-6;
 end
+
 if isfield(options,'frames')
     frames = options.frames;
 else
@@ -62,7 +63,7 @@ end
 if isfield(options,'start_index')
     params.start_index = options.start_index;
 else
-    params.start_index = 1; %round(length(dataSynced.t)/20);
+    params.start_index = 1;
 end
 
 if isfield(options,'max_total_states')
@@ -70,17 +71,17 @@ if isfield(options,'max_total_states')
 else
     params.max_total_states = 30000; %round(length(dataSynced.t)/20);
 end
-%% LS Optimization on SO(3), using Gauss-Newton
+%% LEAST SQUARES OPTIMIZATION
 
 % Provide an initial guess for the biases.
-% if any(dataSynced.staticIndices)
-%     isStatic = dataSynced.staticIndices;
-%     bias_a = mean(dataSynced.accel_mocap(:,isStatic) - dataSynced.accel(:,isStatic),2);
-%     bias_g = mean(dataSynced.gyro_mocap(:,isStatic) - dataSynced.gyro(:,isStatic),2);
-% else
-%     bias_a = [0;0;0];
-%     bias_g = [0;0;0];
-% end
+if any(dataSynced.staticIndices)
+    isStatic = dataSynced.staticIndices;
+    bias_a = mean(dataSynced.accel_mocap(:,isStatic) - dataSynced.accel(:,isStatic),2);
+    bias_g = mean(dataSynced.gyro_mocap(:,isStatic) - dataSynced.gyro(:,isStatic),2);
+else
+    bias_a = [0;0;0];
+    bias_g = [0;0;0];
+end
 
 % initialize
 costFuncHist = [];
@@ -159,7 +160,7 @@ pause(eps)
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
-while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
+while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
     indx_counter = 1;
     
     % compute error vector
@@ -175,8 +176,7 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
         delta_cost = abs((cost - costFuncHist(end))/(cost - costFuncHist(1)));
     end
     costFuncHist = [costFuncHist; cost];
-    
-    
+
     h1.YData = e_pos(1,:);
     h2.YData = e_pos(2,:);
     h3.YData = e_pos(3,:);
@@ -196,14 +196,14 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
                                            scale_a, scale_g, skew_a, skew_g,...
                                            C_ae, dataSynced, params);
                                        
-        A_phia = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
+        A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
 
         f_Cmg = @(C) imuDeadReckoningError(C_ma, C, bias_a, bias_g,...
                                            scale_a, scale_g, skew_a, skew_g,...
                                            C_ae, dataSynced, params);
-        A_phig = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
+        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
 
-        A = [A, A_phia, A_phig];
+        A = [A, A_phi_a, A_phi_g];
         phi_indices = indx_counter:indx_counter+5;
         indx_counter = indx_counter + 6;
     end
@@ -248,12 +248,11 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
         grav_indices = indx_counter:indx_counter + 1;
     end
 
-    
+    % Compute step direction
     if isempty(A)
         warning('No calibration parameters have been selected.')
         delta = 1e-16
     else
-        % Compute step direction
         if iter > 10
             delta = -(A.'*A + 0.5*diag(diag(A.'*A))) \ (A.' * e);
         else

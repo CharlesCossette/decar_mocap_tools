@@ -88,6 +88,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     grid on
     legend('IMU Data','Mocap Data')
     title('Angular Velocity')
+    
     %% Save the synchronized data
     dataSynced.t = t_synced;
     dataSynced.accel = imu_acc_synced;

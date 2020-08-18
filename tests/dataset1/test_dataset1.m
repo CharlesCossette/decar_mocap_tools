@@ -39,7 +39,7 @@ options.grav = true;
 options.start_index = 1;
 options.max_total_states = 30000;
 options.interval_size = 2000;
-options.batch_size = 2000;
+options.batch_size = 500;
 
 [results, dataCalibrated] = calibrateImu(dataAligned,options)
 %% Dead Reckon Actual Data to Test
@@ -55,7 +55,7 @@ phi_ba = DCM_TO_ROTVEC(traj_so3.C_ba);
 phi_ba_mocap = DCM_TO_ROTVEC(dataCalibrated.C_ba);
 r_zw_a_rk4 = traj_rk4.r_zw_a;
 r_zw_a_so3 = traj_so3.r_zw_a;
-
+v_zwa_a_so3 = traj_so3.v_zwa_a;
 % 3D Plot
 figure
 plot3(r_zw_a_so3(1,1:end), r_zw_a_so3(2,1:end), r_zw_a_so3(3,1:end),'linewidth',2)
@@ -123,3 +123,24 @@ plot(dataCalibrated.t, phi_ba_mocap(3,:))
 hold off
 grid on
 ylabel('$\phi_3$','interpreter','latex')
+
+% Velocity Components
+figure
+subplot(3,1,1)
+plot(dataCalibrated.t,v_zwa_a_so3(1,:) - dataCalibrated.v_zwa_a(1,:),'LineWidth',2)
+grid on
+ylabel('$\phi_1$','interpreter','latex')
+title('Position Dead-reckoning Error')
+axis([-inf inf -5 5])
+
+subplot(3,1,2)
+plot(dataCalibrated.t, v_zwa_a_so3(2,:) - dataCalibrated.v_zwa_a(2,:),'LineWidth',2)
+grid on
+ylabel('$\phi_2$','interpreter','latex')
+axis([-inf inf -5 5])
+
+subplot(3,1,3)
+plot(dataCalibrated.t, v_zwa_a_so3(3,:) - dataCalibrated.v_zwa_a(3,:),'LineWidth',2)
+grid on
+ylabel('$\phi_3$','interpreter','latex')
+axis([-inf inf -5 5])

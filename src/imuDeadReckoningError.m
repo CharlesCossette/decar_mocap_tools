@@ -76,14 +76,6 @@ function [error, error_position, error_velocity, error_attitude] = ...
                                    
         error_attitude(:,idx) = DCM_TO_ROTVEC(matmul3d(traj_dr.C_ba,...
                                               trans3d(dataSynced.C_ba(:,:,idx))));
-        
-        
-%         for lv2 = 1:N
-%             % Index in the actual dataSynced timeseries.
-%             idxData = lv2 + lv1 -1;
-%             error_attitude(:,idxData) = DCM_TO_ROTVEC((traj_dr.C_ba(:,:,lv2)...
-%                                               *dataSynced.C_ba(:,:,idxData).'));
-%         end
 
     end
     
