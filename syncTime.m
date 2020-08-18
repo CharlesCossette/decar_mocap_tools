@@ -1,4 +1,4 @@
-function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
+function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, force_sync)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -12,6 +12,9 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     if nargin < 3
         accThreshold = 12; 
     end
+    if ~exist('force_sync','var')
+        force_sync = false;
+    end
 
     g_a = [0;0;-9.80665]; % gravity 
     
@@ -21,6 +24,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     [mocap_acc, ~] = getFakeImuMocap(splineStruct,t_mocap,g_a);
 
     %% Finding the timestep in which a spike occurs in both datasets
+    % TODO: Find a solution when there is no spike....
     % Finding the peak in the IMU data
     accNormIMU    = vecnorm(dataIMU.accel);
     spikeIndexIMU = find(accNormIMU>accThreshold,1,'first');
@@ -37,47 +41,31 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     offset          = tSyncMocap - tSyncIMU;
                                               
     %% Generating the synced data
-    index_synced       = [];
-    t_synced           = [];
-    
-    % TODO: why is this necessary, why can we not just modify the
-    % timestamps of the IMU measurements so that they are the time in the
-    % mocap clock? Negative values are fine. 
-    
-    % Find the timesteps in the Mocap time reference and its corresponding
-    % index in the IMU data
-    for lv1=1:length(dataIMU.t)
-        tDiff = dataIMU.t(lv1) - tSyncIMU; % the time difference between the 
-                                       % the current timestamp and the 
-                                       % timestap at which the peak occurred.
-        t = tDiff + tSyncMocap; % the corresponding time in the Mocap time reference.
-        if t < 0 || t > t_mocap(length(t_mocap))
-            continue
-        end
-        
-        index_synced = [index_synced; lv1];
-        t_synced = [t_synced; t];
+    % Move the IMU clock to the mocap clock.
+    if ~force_sync
+        dataIMU.t = dataIMU.t - tSyncIMU + tSyncMocap;
     end
+    % Delete IMU data that doesnt have ground truth.
+    isOutsideMocap = (dataIMU.t < 0) | (dataIMU.t > t_mocap(end));
+    t_synced = dataIMU.t(~isOutsideMocap);
+    imu_acc_synced = dataIMU.accel(:,~isOutsideMocap);
+    imu_gyr_synced = dataIMU.gyro(:,~isOutsideMocap);
 
-    % Find IMU measurement timestamps to the Mocap clock
-    imu_acc_synced     = zeros(3,length(t_synced));
-    imu_gyr_synced     = zeros(3,length(t_synced));
-    for lv1=1:length(t_synced)
-        indx = index_synced(lv1);
-        imu_acc_synced(:,lv1) = dataIMU.accel(:,indx);
-        imu_gyr_synced(:,lv1) = dataIMU.gyro(:,indx);
-    end
-    
-    % Emulate accelerometer and gyroscope measurements at required timesteps.
-    %[mocap_acc_synced, mocap_omega_synced, dataSynced] = getFakeImuMocap(splineStruct, t_synced, g_a);
-    
     % Refine further using least-squares
-    f = @(dt) error(dt, t_synced, splineStruct, imu_acc_synced, imu_gyr_synced);
-    options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt','display','iter-detailed','steptolerance',1e-8);
-    dt = lsqnonlin(f,0);
-    
-    t_synced = t_synced + dt;
-    [mocap_acc_synced, mocap_omega_synced, dataSynced] = getFakeImuMocap(splineStruct, t_synced, g_a);
+    % TODO: make this step optional, as it takes a decent amount of time.
+    % TODO: add scaling factor? t_synced_refined = scale*(t_synced + dt);
+    if ~force_sync
+        f = @(dt) error(dt, t_synced, splineStruct, imu_acc_synced, imu_gyr_synced);
+        options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt',...
+                               'display','iter-detailed','steptolerance',1e-8,...
+                               'InitDamping',0);
+        dt = lsqnonlin(f,0,[],[],options);
+
+        % Apply results to the new clock.
+        t_synced = t_synced + dt;
+    end
+    [mocap_acc_synced, mocap_omega_synced, dataSynced] = ...
+                              getFakeImuMocap(splineStruct, t_synced, g_a);
     
     %% Visualizing the time synchronization
     figure
@@ -101,18 +89,12 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     legend('IMU Data','Mocap Data')
     title('Angular Velocity')
     %% Save the synchronized data
-    dataSynced.t          = t_synced;
-    dataSynced.accIMU     = imu_acc_synced;
-    dataSynced.omegaIMU   = imu_gyr_synced;
-    dataSynced.accMocap   = mocap_acc_synced;
-    dataSynced.omegaMocap = mocap_omega_synced;
+    dataSynced.t = t_synced;
+    dataSynced.accel = imu_acc_synced;
+    dataSynced.gyro = imu_gyr_synced;
+    dataSynced.accel_mocap = mocap_acc_synced;
+    dataSynced.gyro_mocap = mocap_omega_synced;
     
-end
-function omega_ba_b = quatrate2omega(q_ba, q_ba_dot)
-eta = q_ba(1);
-epsilon = q_ba(2:4);
-S = [-2*epsilon, 2*(eta*eye(3) - CrossOperator(epsilon))];
-omega_ba_b = S*q_ba_dot;
 end
 
 function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
@@ -120,5 +102,5 @@ function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
     [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced + dt, g_a);
     error_accel = vecnorm(mocap_acc) - vecnorm(imu_accel);
     error_gyro = vecnorm(mocap_gyro) - vecnorm(imu_gyro);
-    output = [error_accel(:); error_gyro(:)];
+    output = [0*error_accel(:); error_gyro(:)];
 end

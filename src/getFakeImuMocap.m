@@ -11,7 +11,7 @@ function [mocap_accel, mocap_gyro, data] = getFakeImuMocap(splineStruct,t,g_a)
         q_ba     = temp(4:7,lv1);
         q_ba = q_ba./norm(q_ba);
         q_ba_dot = tempDerv(4:7,lv1);
-        omega_ba_b = quatrate2omega(q_ba, q_ba_dot);
+        omega_ba_b = quatRateToOmega(q_ba, q_ba_dot);
         mocap_gyro(:,lv1) = omega_ba_b;
 
         % Mocap acceleration data
@@ -22,8 +22,8 @@ function [mocap_accel, mocap_gyro, data] = getFakeImuMocap(splineStruct,t,g_a)
     
     data.t = t;
     data.r_zw_a = temp(1:3,:);
-    data.q_ba = temp(4:7,:)./vecnorm(temp(4:7,:));
-    data.C_ba = quat2dcm(data.q_ba.');
+    data.q_ba = temp(4:7,:)./vecNormImag(temp(4:7,:));
+    data.C_ba = quatToDcm(data.q_ba);
     data.v_zwa_a = tempDerv(1:3,:);
     data.a_zwa_a = tempDerv2(1:3,:);
 end

@@ -1,12 +1,14 @@
-function q_ba = smoothdcm2quat(C_ba)
-%SMOOTHDCM2QUAT Converts a batch of DCMs to quaternions will avoiding
-%discontinuities.
-% Inputs:
+function q_ba = dcmToQuat(C_ba)
+%DCMTOQUAT Converts a batch of DCMs to quaternions while avoiding
+% discontinuities, unlike the dcm2quat() function in the aerospace toolbox.
+% Furthermore, this is compatible with the complex step.
+%
+% PARAMETERS:
 % --------
 % C_ba: [3 x 3 x N] double
 %       list of DCMs
 %
-% Outputs:
+% RETURNS:
 % --------
 % q_ba [N x 4] double
 %       list of quaternions, where the FIRST component is the scalar.
@@ -32,5 +34,4 @@ for lv1 = 2:size(q_ba,2)
         q_ba(:,lv1) = -q_ba(:,lv1);
     end
 end
-q_ba = q_ba.';
 end
