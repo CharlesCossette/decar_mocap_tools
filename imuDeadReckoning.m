@@ -1,13 +1,11 @@
 function trajectory = imuDeadReckoning(dataIMU, r_zw_a_0, v_zwa_a_0, C_ba_0, g_a, method, t_span)
 
 if ~exist('t_span','var')
-    t_span = [dataIMU.t(1); dataIMU.t(end)];
+    t_span = dataIMU.t;
+elseif numel(t_span) == 2
+    idx = (dataIMU.t >= t_span(1)) & (dataIMU.t <= t_span(end));
+    t_span = dataIMU.t(idx);
 end
-
-idx = (dataIMU.t >= t_span(1)) & (dataIMU.t <= t_span(end));
-dataIMU.t = dataIMU.t(idx);
-dataIMU.accel = dataIMU.accel(:,idx);
-dataIMU.gyro = dataIMU.gyro(:,idx);
 
 switch method
     case 'euler'
@@ -17,9 +15,6 @@ switch method
         % Initial conditions
         q_ba_0 = smoothdcm2quat(C_ba_0);
         x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0.'];
-        
-        % Time range to integrate over
-        t_span = dataIMU.t;
         
         % Continuous-time imu dead reckoning equations
         f = @(t,x) imuDeadReckoningODE(t,x, dataIMU.t, dataIMU.accel, ...
@@ -42,9 +37,6 @@ switch method
         q_ba_0 = smoothdcm2quat(C_ba_0);
         x_0 = [r_zw_a_0; v_zwa_a_0; q_ba_0.'];
         
-        % Time range to integrate over
-        t_span = dataIMU.t;
-        
         % Continuous-time imu dead reckoning equations
         f = @(t,x) imuDeadReckoningODE(t,x, dataIMU.t, dataIMU.accel, ...
                                        dataIMU.gyro, g_a);
@@ -63,7 +55,7 @@ switch method
         % discretization scheme. 
         
         % Initialize
-        N = length(dataIMU.t);
+        N = length(t_span);
         r_zw_a_so3 = zeros(3,N);
         v_zwa_a_so3 = zeros(3,N);
         C_ba_so3 = zeros(3,3,N);
@@ -74,15 +66,19 @@ switch method
         
         % Dead reckoning        
         for lv1 = 1:N-1
-            dt = dataIMU.t(lv1+1) - dataIMU.t(lv1);
-            omega_ba_b = dataIMU.gyro(:,lv1);
-            a_zwa_b = dataIMU.accel(:,lv1);
-            C_ba_so3(:,:,lv1+1) =ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_so3(:,:,lv1);
+            dt = t_span(lv1+1) - t_span(lv1);
+            
+            % Use zero-order hold
+            measurement_index = find(dataIMU.t <= t_span(lv1), 1, 'last');    
+            omega_ba_b = dataIMU.gyro(:,measurement_index);
+            a_zwa_b = dataIMU.accel(:,measurement_index);
+            
+            C_ba_so3(:,:,lv1+1) = ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_so3(:,:,lv1);
             v_zwa_a_so3(:,lv1+1) = v_zwa_a_so3(:,lv1) + (C_ba_so3(:,:,lv1).'*a_zwa_b + g_a)*dt;
             r_zw_a_so3(:,lv1+1) = r_zw_a_so3(:,lv1) + v_zwa_a_so3(:,lv1)*dt;
             a_zwa_a_so3(:,lv1) = C_ba_so3(:,:,lv1).'*a_zwa_b + g_a;
         end
-        trajectory.t = dataIMU.t;
+        trajectory.t = t_span(:);
         trajectory.r_zw_a = r_zw_a_so3;
         trajectory.v_zwa_a = v_zwa_a_so3;
         trajectory.C_ba = C_ba_so3;

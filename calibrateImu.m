@@ -15,7 +15,7 @@ end
 if isfield(options,'tolerance')
     TOL = options.tolerance;
 else
-    TOL = 1e-6;
+    TOL = 1e-9;
 end
 if isfield(options,'frames')
     frames = options.frames;
@@ -47,6 +47,29 @@ else
     grav = true;
 end
 
+if isfield(options,'interval_size')
+    params.interval_size = options.interval_size;
+else
+    params.interval_size = 30000;
+end
+
+if isfield(options,'batch_size')
+    params.batch_size = options.batch_size;
+else
+    params.batch_size = 30000;
+end
+
+if isfield(options,'start_index')
+    params.start_index = options.start_index;
+else
+    params.start_index = 1; %round(length(dataSynced.t)/20);
+end
+
+if isfield(options,'max_total_states')
+    params.max_total_states = options.max_total_states;
+else
+    params.max_total_states = 30000; %round(length(dataSynced.t)/20);
+end
 %% LS Optimization on SO(3), using Gauss-Newton
 
 % Provide an initial guess for the biases.
@@ -70,18 +93,16 @@ skew_a = [0;0;0];
 skew_g = [0;0;0];
 C_ae = eye(3);
 
-params.window_size = 30000;
-params.min_index = 1; 
-params.interval_size = 30000; %round(length(dataSynced.t)/20);
-params.batch_size = 30000;
-params.max_index = params.min_index + params.window_size - 1;
-if params.max_index > length(dataSynced.t)
-    params.max_index = length(dataSynced.t);
+params.end_index = params.start_index + params.max_total_states - 1;
+if params.end_index > length(dataSynced.t)
+    params.end_index = length(dataSynced.t);
 end
 
 
 % compute error vector once
-[~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
+[~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
+                                                 scale_a, scale_g, skew_a, skew_g,...
+                                                 C_ae, dataSynced, params);
 
 figure(1)
 cla
@@ -140,8 +161,10 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, params);
-    assert(all(size(e_pos) == size(e_vel)));
+    [e, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
+                                                    scale_a, scale_g, skew_a, skew_g,...
+                                                    C_ae, dataSynced, params);
+    %assert(all(size(e_pos) == size(e_vel)));
     assert(all(size(e_pos) == size(e_att)));    
     
     cost = 0.5*(e.'*e)
@@ -207,7 +230,7 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
         f_skew = @(s) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
                                             scale_a, scale_g, s(1:3), s(4:6),...
                                             C_ae, dataSynced, params);
-        A_skew = complexStepJacobian(f_skew, [skew_a;skew_g]);
+        A_skew = complexStepJacobian(f_skew, [skew_a; skew_g]);
         A = [A, A_skew];
         skew_indices = indx_counter:indx_counter + 5;
         indx_counter = indx_counter + 6;
@@ -238,17 +261,17 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
     
     % decompose and update
     if frames
-        del_phia = delta(phi_indices(1:3));
-        del_phig = delta(phi_indices(4:6));
-        C_ma = ROTVEC_TO_DCM(-del_phia)*C_ma;
-        C_mg = ROTVEC_TO_DCM(-del_phig)*C_mg;
+        del_phi_a = delta(phi_indices(1:3));
+        del_phi_g = delta(phi_indices(4:6));
+        C_ma = ROTVEC_TO_DCM(-del_phi_a)*C_ma;
+        C_mg = ROTVEC_TO_DCM(-del_phi_g)*C_mg;
     end
     
     if bias
-        del_biasAcc_s = delta(bias_indices(1:3));
-        del_biasGyr_s = delta(bias_indices(4:6));
-        bias_a = bias_a + del_biasAcc_s;
-        bias_g = bias_g + del_biasGyr_s;
+        del_bias_a = delta(bias_indices(1:3));
+        del_bias_g = delta(bias_indices(4:6));
+        bias_a = bias_a + del_bias_a;
+        bias_g = bias_g + del_bias_g;
     end
     
     if scale
@@ -266,8 +289,8 @@ while norm(delta) > TOL && iter < 100 && delta_cost >  TOL
     end
     
     if grav
-        del_phiae = delta(grav_indices);
-        C_ae = ROTVEC_TO_DCM(-[del_phiae;0])*C_ae;
+        del_phi_ae = delta(grav_indices);
+        C_ae = ROTVEC_TO_DCM(-[del_phi_ae;0])*C_ae;
     end
 
     iter = iter + 1;

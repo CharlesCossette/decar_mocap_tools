@@ -1,4 +1,4 @@
-function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
+function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, force_sync)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -11,6 +11,9 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     end
     if nargin < 3
         accThreshold = 12; 
+    end
+    if ~exist('force_sync','var')
+        force_sync = false;
     end
 
     g_a = [0;0;-9.80665]; % gravity 
@@ -39,9 +42,9 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
                                               
     %% Generating the synced data
     % Move the IMU clock to the mocap clock.
-    
-    dataIMU.t = dataIMU.t - tSyncIMU + tSyncMocap;
-    
+    if ~force_sync
+        dataIMU.t = dataIMU.t - tSyncIMU + tSyncMocap;
+    end
     % Delete IMU data that doesnt have ground truth.
     isOutsideMocap = (dataIMU.t < 0) | (dataIMU.t > t_mocap(end));
     t_synced = dataIMU.t(~isOutsideMocap);
@@ -51,14 +54,16 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold)
     % Refine further using least-squares
     % TODO: make this step optional, as it takes a decent amount of time.
     % TODO: add scaling factor? t_synced_refined = scale*(t_synced + dt);
-    f = @(dt) error(dt, t_synced, splineStruct, imu_acc_synced, imu_gyr_synced);
-    options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt',...
-                           'display','iter-detailed','steptolerance',1e-8,...
-                           'InitDamping',0);
-    dt = lsqnonlin(f,0,[],[],options);
-    
-    % Apply results to the new clock.
-    t_synced = t_synced + dt;
+    if ~force_sync
+        f = @(dt) error(dt, t_synced, splineStruct, imu_acc_synced, imu_gyr_synced);
+        options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt',...
+                               'display','iter-detailed','steptolerance',1e-8,...
+                               'InitDamping',0);
+        dt = lsqnonlin(f,0,[],[],options);
+
+        % Apply results to the new clock.
+        t_synced = t_synced + dt;
+    end
     [mocap_acc_synced, mocap_omega_synced, dataSynced] = ...
                               getFakeImuMocap(splineStruct, t_synced, g_a);
     
@@ -97,5 +102,5 @@ function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
     [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced + dt, g_a);
     error_accel = vecnorm(mocap_acc) - vecnorm(imu_accel);
     error_gyro = vecnorm(mocap_gyro) - vecnorm(imu_gyro);
-    output = [error_accel(:); error_gyro(:)];
+    output = [0*error_accel(:); error_gyro(:)];
 end

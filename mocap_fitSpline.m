@@ -38,8 +38,8 @@ for lv1=1:1:numel(rigidBodies)
         % Generate the defining properties of the B-spline.
         % Assume initial and final velocity, angular velocity are 0
         pp = spline(t,waypoints);
-        %pp = csaps(t,waypoints,0.9999995);
-        % pp = fn2fm(spaps(t,waypoints,0.001,[],3))
+        %pp = csaps(t,waypoints,0.99999995);
+        %pp = fn2fm(spaps(t,waypoints,0.00001,[],2),'pp')
         
         % Saving the computed B-spline fit.
         splineMocap.(bodyName{1}) = pp;
@@ -59,23 +59,25 @@ end
 function plotScript(data,t,splineMocap,bodyName)
 
 spline_points = ppval(splineMocap.(bodyName{1}),t);
-
+staticIndices = getIndicesFromIntervals(t, data.(bodyName{1}).staticIntervals);
 figure
 subplot(3,1,1)
 plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(1,:))
 hold on
 plot(t,spline_points(1,:))
+plot(t,staticIndices*4,'Linewidth',2,'color','black');
 hold off
 grid on
 xlabel('$t$ [s]', 'Interpreter', 'Latex')
 ylabel('$x$ [m]', 'Interpreter', 'Latex')
-legend('Raw Data', 'Bspline fit')
+legend('Raw Data', 'Bspline fit', 'Static Detector')
 title(['Position', bodyName])
 
 subplot(3,1,2)
 plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(2,:))
 hold on
 plot(t,spline_points(2,:))
+plot(t,staticIndices*4,'Linewidth',2,'color','black');
 hold off
 grid on
 xlabel('$t$ [s]', 'Interpreter', 'Latex')
@@ -85,6 +87,7 @@ subplot(3,1,3)
 plot(data.(bodyName{1}).t, data.(bodyName{1}).r_zw_a(3,:))
 hold on
 plot(t,spline_points(3,:))
+plot(t,staticIndices*4,'Linewidth',2,'color','black');
 hold off
 grid on
 xlabel('$t$ [s]', 'Interpreter', 'Latex')

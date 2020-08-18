@@ -1,4 +1,4 @@
-function x_dot = imuDeadReckoningODE(t,x,t_meas, accel_imu, gyro_imu, g_a)
+function x_dot = imuDeadReckoningODE(t,x, t_meas, accel_imu, gyro_imu, g_a)
     r_zw_a = x(1:3);
     v_zwa_a = x(4:6);
     q_ba = x(7:10);

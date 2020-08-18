@@ -36,10 +36,8 @@ options.frames = true;
 options.bias = true;
 options.scale = true;
 options.skew = false;
-options.grav = false;
+options.grav = true;
 [results, dataCalibrated] = calibrateImu(dataAligned, options)
-
-
 
 %% Dead Reckon Actual Data to Test
 r_zw_a_0 = dataCalibrated.r_zw_a(:,1);
@@ -122,48 +120,3 @@ plot(dataCalibrated.t, phi_ba_mocap(3,:))
 hold off
 grid on
 ylabel('$\phi_3$','interpreter','latex')
-
-
-
-% %% Dead Reckon Spline to Validate 
-% t = (dataCalibrated.t(1):0.001:dataCalibrated.t(end)).';
-% 
-% % Generate the data first
-% g_a = results.g_a;
-% [accMocap, omegaMocap] = getFakeImuMocap(splineMocap.RigidBody,t,g_a);
-% 
-% N = length(t);
-% r_zw_a = zeros(3,N);
-% v_zwa_a = zeros(3,N);
-% a_zwa_a = zeros(3,N);
-% C_ba = zeros(3,3,N);
-% r_zw_a(:,1) = dataMocap.RigidBody.r_zw_a(:,1);
-% C_ba(:,:,1) = dataMocap.RigidBody.C_ba(:,:,1);
-% 
-% for lv1 = 1:N-1
-%     dt = t(lv1+1) - t(lv1);
-%     omega_ba_b = omegaMocap(:,lv1);
-%     a_zwa_b = accMocap(:,lv1);  
-%     C_ba(:,:,lv1+1) = expm(-CrossOperator(omega_ba_b*dt))*C_ba(:,:,lv1);
-%     v_zwa_a(:,lv1+1) = v_zwa_a(:,lv1) + (C_ba(:,:,lv1).'*a_zwa_b + g_a)*dt;
-%     r_zw_a(:,lv1+1) = r_zw_a(:,lv1) + v_zwa_a(:,lv1)*dt;
-%     a_zw_a(:,lv1) = C_ba(:,:,lv1).'*a_zwa_b + g_a;
-% end
-% 
-% figure
-% plot3(r_zw_a(1,1:end), r_zw_a(2,1:end), r_zw_a(3,1:end),'linewidth',2)
-% hold on
-% plot3(dataMocap.RigidBody.r_zw_a(1,1:end),...
-%       dataMocap.RigidBody.r_zw_a(2,1:end),...
-%       dataMocap.RigidBody.r_zw_a(3,1:end),'linewidth',2);
-% hold off
-% axis vis3d
-% axis equal
-% legend('Dead-Reckon Solution','Ground Truth')
-% title('Ground Truth Dead-Reckoning')
-% %axis([-1 4 -2 2 0 3])
-% xlabel('x')
-% ylabel('y')
-% zlabel('z')
-% grid on
-

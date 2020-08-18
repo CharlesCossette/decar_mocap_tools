@@ -19,7 +19,7 @@ function mocap_play(dataMocap)
     clf
     ani.build()
     %axis([-4 4 -2.5 2.5 0 3])
-    axis([-10 10 -10 10 -10 10]*0.5)
+    %axis([-10 10 -10 10 -10 10]*0.5)
     xlabel('$x$ (m)','interpreter','latex','fontsize',15)
     ylabel('$y$ (m)','interpreter','latex','fontsize',15)
     zlabel('$z$ (m)','interpreter','latex','fontsize',15)

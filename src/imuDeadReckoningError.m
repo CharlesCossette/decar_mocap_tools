@@ -12,8 +12,8 @@ function [error, error_position, error_velocity, error_attitude] = ...
     isStatic = dataSynced.staticIndices(:);   
     interval_size = params.interval_size;
     batch_size = params.batch_size;
-    min_index = params.min_index;
-    max_index = params.max_index;
+    start_index = params.start_index;
+    end_index = params.end_index;
     
     calib_params.C_ms_accel = C_ma;
     calib_params.C_ms_gyro = C_mg;
@@ -35,18 +35,18 @@ function [error, error_position, error_velocity, error_attitude] = ...
     error_position = nan(3,length(dataSynced.t));
     error_velocity = nan(3,length(dataSynced.t));
     error_attitude = nan(3,length(dataSynced.t));
-    error_accel = nan(3,length(dataSynced.t));
-    error_omega = nan(3,length(dataSynced.t));
-    for lv1 = min_index:interval_size:max_index 
-        if (lv1 + batch_size) > max_index
-            N = max_index - lv1 + 1;
+    %error_accel = nan(3,length(dataSynced.t));
+    %error_omega = nan(3,length(dataSynced.t));
+    for lv1 = start_index:interval_size:end_index 
+        if (lv1 + batch_size) > end_index
+            N = end_index - lv1 + 1;
         else
             N = batch_size;
         end
         idx = lv1:lv1 + N -1;
         idx = idx(:);
-        isStaticInBatch = idx(:).*isStatic(idx);
-        isStaticInBatch = isStaticInBatch(isStaticInBatch ~= 0);
+        %isStaticInBatch = idx(:).*isStatic(idx);
+        %isStaticInBatch = isStaticInBatch(isStaticInBatch ~= 0);
         
         % Initial conditions from mocap (if we detected static, force zero
         % velocity).
@@ -61,13 +61,14 @@ function [error, error_position, error_velocity, error_attitude] = ...
         traj_dr = imuDeadReckoning(data_corrected, r_zw_a_0, v_zwa_a_0, C_ba_0,...
                                    g_a, 'so3',t_span);
         
-        % Build errors. If static, force zero as the reference. 
+        % Build errors. If static, force zero velocity as the reference. 
         error_position(:,idx) = dataSynced.r_zw_a(:,idx) - traj_dr.r_zw_a;
-        error_velocity(:,idx) = dataSynced.v_zwa_a(:,idx) - traj_dr.v_zwa_a;
-        error_velocity(:,isStaticInBatch) = error_velocity(:,isStaticInBatch) ...
-                                       - dataSynced.v_zwa_a(:,isStaticInBatch);
-        error_accel(:,idx) = dataSynced.a_zwa_a(:,idx) - traj_dr.a_zwa_a;
-        error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
+        %error_velocity(:,idx) = dataSynced.v_zwa_a(:,idx) - traj_dr.v_zwa_a;
+        %error_velocity(:,isStaticInBatch) = error_velocity(:,isStaticInBatch) ...
+        %                               - dataSynced.v_zwa_a(:,isStaticInBatch);
+                                   
+        %error_accel(:,idx) = dataSynced.a_zwa_a(:,idx) - traj_dr.a_zwa_a;
+        %error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
         for lv2 = 1:N
             % Index in the actual dataSynced timeseries.
             idxData = lv2 + lv1 -1;
@@ -79,43 +80,47 @@ function [error, error_position, error_velocity, error_attitude] = ...
     
     % Add weight when static. 
     error_position(:,isStatic) = error_position(:,isStatic);
-    error_velocity(:,isStatic) = 100*error_velocity(:,isStatic);
+    %error_velocity(:,isStatic) = 100*error_velocity(:,isStatic);
     error_attitude(:,isStatic) = error_attitude(:,isStatic);
     
     
     % Discard any corresponding to gaps in the mocap data, as the spline is
     % potentially inaccurate during these times. 
     error_position = error_position(:,~isGap);
-    error_velocity = error_velocity(:,~isGap);
+    %error_velocity = error_velocity(:,~isGap);
     error_attitude = error_attitude(:,~isGap);
-    error_accel = error_accel(:,~isGap);
-    error_omega = error_omega(:,~isGap);
+    %error_accel = error_accel(:,~isGap);
+    %error_omega = error_omega(:,~isGap);
+    
+    % Velocity ONLY when static. Trying to use the spline as little as
+    % possible.
+    % error_velocity = error_velocity(:,isStatic);    
     
     % Remove any NANs, which are periods for which we are not
     % dead-reckoning.
     % Warning: potential silent failing here if the indexing is not done
     % properly.... NANs will just get deleted.
     error_position = error_position(:,all(~isnan(error_position),1));
-    error_velocity = error_velocity(:,all(~isnan(error_velocity),1));
+    %error_velocity = error_velocity(:,all(~isnan(error_velocity),1));
     error_attitude = error_attitude(:,all(~isnan(error_attitude),1));
-    error_accel = error_accel(:,all(~isnan(error_attitude),1));
-    error_omega = error_omega(:,all(~isnan(error_attitude),1));
+    %error_accel = error_accel(:,all(~isnan(error_attitude),1));
+    %error_omega = error_omega(:,all(~isnan(error_attitude),1));
     
-    phi_ma = DCM_TO_ROTVEC(C_ma);
-    phi_mg = DCM_TO_ROTVEC(C_mg);
-    error_regularize = [phi_ma;
-                        phi_mg;
-                        0.1*bias_a;
-                        bias_g;
-                        ones(3,1) - scale_a;
-                        ones(3,1) - scale_g;
-                        skew_a;
-                        skew_g];
+%     phi_ma = DCM_TO_ROTVEC(C_ma);
+%     phi_mg = DCM_TO_ROTVEC(C_mg);
+%     error_regularize = [phi_ma;
+%                         phi_mg;
+%                         0.1*bias_a;
+%                         bias_g;
+%                         ones(3,1) - scale_a;
+%                         ones(3,1) - scale_g;
+%                         skew_a;
+%                         skew_g];
                         
-    error_velocity = error_velocity(:,isStatic);                    
+                    
     error = [
              error_position(:);
-             error_velocity(:);
+             %error_velocity(:);
              10*error_attitude(:);
              %error_accel(:);
              %error_omega(:);

@@ -51,8 +51,8 @@ end
 
 % Extract covariances when static as weighting matrices.
 if sum(dataSynced.staticIndices) > 3
-    cov_a = cov(dataSynced.accMocap(:,dataSynced.staticIndices).');
-    cov_g = cov(dataSynced.omegaMocap(:,dataSynced.staticIndices).');
+    cov_a = cov(dataSynced.accel_mocap(:,dataSynced.staticIndices).');
+    cov_g = cov(dataSynced.gyro_mocap(:,dataSynced.staticIndices).');
     W_a = inv(diag(diag(chol(cov_a))));
     W_g = inv(diag(diag(chol(cov_g))));
 else
@@ -200,55 +200,55 @@ results.g_a = C_ae*g_e;
 % T_skew(1,2) = -skew_a(3);
 % T_skew(1,3) =  skew_a(2);
 % T_skew(2,3) = -skew_a(1);
-% accIMU_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU + bias_a);
+% accel_calibrated = C_ma*T_skew*diag(scale_a)*(dataSynced.accel + bias_a);
 % 
 % % Calibrated Gyroscope measurements
 % T_skew = eye(3);
 % T_skew(1,2) = -skew_g(3);
 % T_skew(1,3) =  skew_g(2);
 % T_skew(2,3) = -skew_g(1);
-% omegaIMU_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU + bias_g);
+% gyro_calibrated = C_mg*T_skew*diag(scale_g)*(dataSynced.gyro + bias_g);
 
 
 dataCalibrated = imuCorrectMeasurements(dataSynced, results);
 
 % Calibrated ground truth accel/gyro measurements.
 g_a = results.g_a;
-mocap_gyro = dataSynced.omegaMocap;
+mocap_gyro = dataSynced.gyro_mocap;
 mocap_accel = zeros(3, length(dataSynced.t));
 for lv1 = 1:length(dataSynced.t)
-    mocap_accel(:,lv1) = dataSynced.accMocap(:,lv1) - dataSynced.C_ba(:,:,lv1)*(g_a - g_e);
+    mocap_accel(:,lv1) = dataSynced.accel_mocap(:,lv1) - dataSynced.C_ba(:,:,lv1)*(g_a - g_e);
 end
 
 dataCalibrated.t = dataSynced.t;
-dataCalibrated.accMocap = mocap_accel;
-dataCalibrated.omegaMocap = mocap_gyro;
+dataCalibrated.accel_mocap = mocap_accel;
+dataCalibrated.gyro_mocap = mocap_gyro;
 
 %% Plotting to evaluate performance visually
 % Plot calibrated data - accelerometers
 figure
 sgtitle('Accelerometer')
 subplot(3,1,1)
-plot(dataCalibrated.t, dataCalibrated.accIMU(1,:))
+plot(dataCalibrated.t, dataCalibrated.accel(1,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accMocap(1,:))
+plot(dataCalibrated.t, dataCalibrated.accel_mocap(1,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\ddot{x}$ [$m/s^2$]', 'Interpreter', 'Latex')
 legend('Calibrated IMU Data', 'Mocap Data')
 subplot(3,1,2)
-plot(dataCalibrated.t, dataCalibrated.accIMU(2,:))
+plot(dataCalibrated.t, dataCalibrated.accel(2,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accMocap(2,:))
+plot(dataCalibrated.t, dataCalibrated.accel_mocap(2,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\ddot{y}$ [$m/s^2$]', 'Interpreter', 'Latex')
 subplot(3,1,3)
-plot(dataCalibrated.t, dataCalibrated.accIMU(3,:))
+plot(dataCalibrated.t, dataCalibrated.accel(3,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accMocap(3,:))
+plot(dataCalibrated.t, dataCalibrated.accel_mocap(3,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -258,9 +258,9 @@ ylabel('$\ddot{z}$ [$m/s^2$]', 'Interpreter', 'Latex')
 figure
 sgtitle('Gyroscope')
 subplot(3,1,1)
-plot(dataCalibrated.t, dataCalibrated.omegaIMU(1,:))
+plot(dataCalibrated.t, dataCalibrated.gyro(1,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.omegaMocap(1,:))
+plot(dataCalibrated.t, dataCalibrated.gyro_mocap(1,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -268,17 +268,17 @@ ylabel('$\omega_x$ [rad/$s$]', 'Interpreter', 'Latex')
 legend('Calibrated IMU Data', 'Mocap Data')
 
 subplot(3,1,2)
-plot(dataCalibrated.t, dataCalibrated.omegaIMU(2,:))
+plot(dataCalibrated.t, dataCalibrated.gyro(2,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.omegaMocap(2,:))
+plot(dataCalibrated.t, dataCalibrated.gyro_mocap(2,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\omega_y$ [rad/$s$]', 'Interpreter', 'Latex')
 subplot(3,1,3)
-plot(dataCalibrated.t, dataCalibrated.omegaIMU(3,:))
+plot(dataCalibrated.t, dataCalibrated.gyro(3,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.omegaMocap(3,:))
+plot(dataCalibrated.t, dataCalibrated.gyro_mocap(3,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -293,29 +293,30 @@ ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
     
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function output = errorFull(C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, L_a, L_g)
+function output = errorFull(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced, L_a, L_g)
     isGap = dataSynced.gapIndices;
     isStatic = dataSynced.staticIndices;
-    ea = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced);
-    eg = errorGyro(C_mg, bGyr, scale_g, skew_g, dataSynced);
+    ea = errorAccel(C_ma, bias_a, scale_a, skew_a, C_ae, dataSynced);
+    eg = errorGyro(C_mg, bias_g, scale_g, skew_g, dataSynced);
     ea(:,isStatic) = 50*ea(:,isStatic);
     eg(:,isStatic) = 100*eg(:,isStatic);
     ea = L_a*ea(:,~isGap);
     eg = L_g*eg(:,~isGap);
     output = [ea(:);eg(:)];
 end
-function output = errorFullNoWeight(C_ma, C_mg, bAcc, bGyr, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced)
+function output = errorFullNoWeight(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae, dataSynced)
     isGap = dataSynced.gapIndices;
-    ea = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced);
-    eg = errorGyro(C_mg, bGyr, scale_g, skew_g, dataSynced);
+    ea = errorAccel(C_ma, bias_a, scale_a, skew_a, C_ae, dataSynced);
+    eg = errorGyro(C_mg, bias_g, scale_g, skew_g, dataSynced);
     ea = ea(:,~isGap);
     eg = eg(:,~isGap);
     output = [ea(:);eg(:)];
 end
-function output = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced)
-    
+function output = errorAccel(C_ma, bias_a, scale_a, skew_a, C_ae, dataSynced)
+    isStatic = dataSynced.staticIndices;
+    dataSynced.a_zwa_a(:,isStatic) = 0;
     if all(C_ae == eye(3))
-        mocap_accel = dataSynced.accMocap;
+        mocap_accel = dataSynced.accel_mocap;
     else
         g_e = [0;0;-9.80665];
         g_a = C_ae*g_e;
@@ -329,16 +330,18 @@ function output = errorAccel(C_ma, bAcc, scale_a, skew_a, C_ae, dataSynced)
     T_skew(1,3) =  skew_a(2);
     T_skew(2,3) = -skew_a(1);
     error_accel = mocap_accel...
-                  - C_ma*T_skew*diag(scale_a)*(dataSynced.accIMU + bAcc);
+                  - C_ma*T_skew*diag(scale_a)*(dataSynced.accel + bias_a);
     output = error_accel;
 end
-function output = errorGyro(C_mg, bGyr, scale_g, skew_g, dataSynced)
+function output = errorGyro(C_mg, bias_g, scale_g, skew_g, dataSynced)
+    isStatic = dataSynced.staticIndices;
+    dataSynced.gyro_mocap(:,isStatic) = 0;
     T_skew = eye(3);
     T_skew(1,2) = -skew_g(3);
     T_skew(1,3) =  skew_g(2);
     T_skew(2,3) = -skew_g(1);
-    error_gyro = dataSynced.omegaMocap ...
-                  - C_mg*T_skew*diag(scale_g)*(dataSynced.omegaIMU+ bGyr);
+    error_gyro = dataSynced.gyro_mocap ...
+                  - C_mg*T_skew*diag(scale_g)*(dataSynced.gyro + bias_g);
     output = error_gyro;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
