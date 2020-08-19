@@ -10,7 +10,7 @@ function q_ba = dcmToQuat(C_ba)
 %
 % RETURNS:
 % --------
-% q_ba [N x 4] double
+% q_ba [4 x N] double
 %       list of quaternions, where the FIRST component is the scalar.
 
 % Get the quaternion from the DCM
@@ -34,4 +34,6 @@ for lv1 = 2:size(q_ba,2)
         q_ba(:,lv1) = -q_ba(:,lv1);
     end
 end
+
+q_ba = q_ba./(sum(q_ba.*q_ba,1).^0.5);
 end

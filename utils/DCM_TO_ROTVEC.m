@@ -14,8 +14,6 @@ for lv1 = 1:size(C_ba_list,3)
                              C(1,2) - C(2,1)];
         phi_cross = CrossOperator(a*phi);
     end
-    
-    
     output_list(:,lv1) = VEX(phi_cross);
 end
 
