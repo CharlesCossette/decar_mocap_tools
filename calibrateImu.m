@@ -57,7 +57,7 @@ end
 if isfield(options,'batch_size')
     params.batch_size = options.batch_size;
 else
-    params.batch_size = 1000;
+    params.batch_size = 500;
 end
 
 if isfield(options,'start_index')
@@ -84,7 +84,6 @@ else
 end
 
 % initialize
-costFuncHist = [];
 bias_a = [0;0;0];
 bias_g = [0;0;0];
 phi = [0;0;0];
@@ -100,7 +99,8 @@ params.end_index = params.start_index + params.max_total_states - 1;
 if params.end_index > length(dataSynced.t)
     params.end_index = length(dataSynced.t);
 end
-
+params.gyro_error = true;
+params.accel_error = true;
 
 % compute error vector once
 [~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
@@ -154,21 +154,132 @@ subplot(3,1,3)
 h9 = plot(real(e_att(3,:)));
 %axis([-inf inf -pi pi])
 grid on
-
 pause(eps)
 
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% GYRO CALIBRATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
+costFuncHist = [];
+params.gyro_error = true;
+params.accel_error = false;
 while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
-                                                    scale_a, scale_g, skew_a, skew_g,...
+    [e, e_att] = imuGyroDeadReckoningError(C_mg, bias_g, scale_g, skew_g,...
+                                                   dataSynced, params);  
+    
+    cost = 0.5*(e.'*e)
+    
+    if ~isempty(costFuncHist)
+        delta_cost = abs((cost - costFuncHist(end))/(cost - costFuncHist(1)));
+    end
+    costFuncHist = [costFuncHist; cost];
+
+    h7.YData = e_att(1,:);
+    h8.YData = e_att(2,:);
+    h9.YData = e_att(3,:);
+    pause(0.0001)
+    
+    % compute Jacobians
+    A = [];
+    
+    if frames
+        f_Cmg = @(C) imuGyroDeadReckoningError(C, bias_g, scale_g, skew_g,...
+                                                   dataSynced, params); 
+        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
+
+        A = [A, A_phi_g];
+        phi_indices = indx_counter:indx_counter+2;
+        indx_counter = indx_counter + 3;
+    end
+    
+    if bias
+        f_bias = @(b) imuGyroDeadReckoningError(C_mg, b, scale_g, skew_g,...
+                                                   dataSynced, params); 
+        A_bias = complexStepJacobian(f_bias, bias_g);
+        A = [A, A_bias];
+        bias_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
+    end
+    
+    if scale
+        f_scale = @(s) imuGyroDeadReckoningError(C_mg, bias_g, s, skew_g,...
+                                                   dataSynced, params); 
+        A_scale = complexStepJacobian(f_scale, scale_g);
+        A = [A, A_scale];
+        scale_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
+    end
+    
+    if skew
+        f_skew = @(s) imuGyroDeadReckoningError(C_mg, bias_g, scale_g, s,...
+                                                   dataSynced, params); 
+        A_skew = complexStepJacobian(f_skew, skew_g);
+        A = [A, A_skew];
+        skew_indices = indx_counter:indx_counter + 2;
+    end
+    
+    % Compute step direction
+    if isempty(A)
+        warning('No calibration parameters have been selected.')
+        delta = 1e-16;
+    else
+        if iter > 10
+            delta = -(A.'*A + 0.5*diag(diag(A.'*A))) \ (A.' * e);
+        else
+            delta = -(A.'*A) \( A.' * e);
+        end
+    end 
+    
+    % decompose and update
+    if frames
+        del_phi_g = delta(phi_indices);
+        C_mg = ROTVEC_TO_DCM(-del_phi_g)*C_mg;
+    end
+    
+    if bias
+        del_bias_g = delta(bias_indices);
+        bias_g = bias_g + del_bias_g;
+    end
+    
+    if scale
+        del_scale_g = delta(scale_indices);
+        scale_g = scale_g + del_scale_g;
+    end
+    
+    if skew
+        del_skew_g = delta(skew_indices);
+        skew_g = skew_g + del_skew_g;
+    end
+    iter = iter + 1;
+end
+clear del_phi_g del_bias_g del_scale_g del_skew_g
+disp('Gyroscope calibration complete.')
+% compute error vector
+[~, e_att] = imuGyroDeadReckoningError(C_mg, bias_g, scale_g, skew_g,...
+                                                   dataSynced, params);  
+RMSE = sqrt((e_att(:).'*e_att(:))./length(dataSynced.t));
+disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACCEL CALIBRATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+delta = Inf;
+iter = 0;
+delta_cost = Inf;
+costFuncHist = [];
+params.gyro_error = false;
+params.accel_error = true;
+while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
+    indx_counter = 1;
+    
+    % compute error vector
+    [e, e_pos, e_vel, e_acc] = imuAccelDeadReckoningError(C_ma, bias_a,...
+                                                    scale_a, skew_a,...
                                                     C_ae, dataSynced, params);
-    %assert(all(size(e_pos) == size(e_vel)));
-    assert(all(size(e_pos) == size(e_att)));    
     
     cost = 0.5*(e.'*e)
     
@@ -192,56 +303,47 @@ while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
     A = [];
     
     if frames
-        f_Cma = @(C) imuDeadReckoningError(C, C_mg, bias_a, bias_g,...
-                                           scale_a, scale_g, skew_a, skew_g,...
-                                           C_ae, dataSynced, params);
+        f_Cma = @(C) imuAccelDeadReckoningError(C, bias_a, scale_a, skew_a,...
+                                                C_ae, dataSynced, params);
                                        
         A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
 
-        f_Cmg = @(C) imuDeadReckoningError(C_ma, C, bias_a, bias_g,...
-                                           scale_a, scale_g, skew_a, skew_g,...
-                                           C_ae, dataSynced, params);
-        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
-
-        A = [A, A_phi_a, A_phi_g];
-        phi_indices = indx_counter:indx_counter+5;
-        indx_counter = indx_counter + 6;
+        A = [A, A_phi_a];
+        phi_indices = indx_counter:indx_counter+2;
+        indx_counter = indx_counter + 3;
     end
     
     if bias
-        f_bias = @(b) imuDeadReckoningError(C_ma, C_mg, b(1:3), b(4:6),...
-                                            scale_a, scale_g, skew_a, skew_g,...
-                                            C_ae, dataSynced, params);
-        A_bias = complexStepJacobian(f_bias, [bias_a;bias_g]);
+        f_bias = @(b) imuAccelDeadReckoningError(C_ma, b, scale_a, skew_a,...
+                                                C_ae, dataSynced, params);
+        A_bias = complexStepJacobian(f_bias, bias_a);
         A = [A, A_bias];
-        bias_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        bias_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
     end
     
     if scale
-        f_scale = @(s) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
-                                             s(1:3), s(4:6), skew_a, skew_g,...
-                                             C_ae, dataSynced, params);
-        A_scale = complexStepJacobian(f_scale, [scale_a;scale_g]);
+        f_scale = @(s) imuAccelDeadReckoningError(C_ma, bias_a, s, skew_a,...
+                                                C_ae, dataSynced, params);
+                                       
+        A_scale = complexStepJacobian(f_scale, scale_a);
         A = [A, A_scale];
-        scale_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        scale_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
     end
     
     if skew
-        f_skew = @(s) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
-                                            scale_a, scale_g, s(1:3), s(4:6),...
-                                            C_ae, dataSynced, params);
-        A_skew = complexStepJacobian(f_skew, [skew_a; skew_g]);
+        f_skew = @(s) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, s,...
+                                                C_ae, dataSynced, params);
+        A_skew = complexStepJacobian(f_skew, skew_a);
         A = [A, A_skew];
-        skew_indices = indx_counter:indx_counter + 5;
-        indx_counter = indx_counter + 6;
+        skew_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
     end
     
     if grav
-        f_Cae = @(C) imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
-                                           scale_a, scale_g, skew_a, skew_g,...
-                                           C, dataSynced, params);
+        f_Cae = @(C) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, skew_a,...
+                                                C, dataSynced, params);
         f_phiae = @(phi) f_Cae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phiae = complexStepJacobian(f_phiae,[0;0]);
         A = [A, A_phiae];
@@ -263,30 +365,22 @@ while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
     % decompose and update
     if frames
         del_phi_a = delta(phi_indices(1:3));
-        del_phi_g = delta(phi_indices(4:6));
         C_ma = ROTVEC_TO_DCM(-del_phi_a)*C_ma;
-        C_mg = ROTVEC_TO_DCM(-del_phi_g)*C_mg;
     end
     
     if bias
         del_bias_a = delta(bias_indices(1:3));
-        del_bias_g = delta(bias_indices(4:6));
         bias_a = bias_a + del_bias_a;
-        bias_g = bias_g + del_bias_g;
     end
     
     if scale
         del_scale_a = delta(scale_indices(1:3));
-        del_scale_g = delta(scale_indices(4:6));
         scale_a = scale_a + del_scale_a;
-        scale_g = scale_g + del_scale_g;
     end
     
     if skew
         del_skew_a = delta(skew_indices(1:3));
-        del_skew_g = delta(skew_indices(4:6));
         skew_a = skew_a + del_skew_a;
-        skew_g = skew_g + del_skew_g;
     end
     
     if grav
@@ -297,11 +391,15 @@ while norm(delta) > TOL && iter < 10 && delta_cost >  TOL
     iter = iter + 1;
 end
 
+disp('Accelerometer/Gravity Calibration Complete')
 % compute error vector
-e = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g, scale_a, scale_g,...
-                          skew_a, skew_g, C_ae, dataSynced, params);
-RMSE = sqrt((e.'*e)./length(dataSynced.t));
-disp(['RMSE After Calibration: ' , num2str(RMSE)])
+[~, e_pos, e_vel] = imuAccelDeadReckoningError(C_ma, bias_a,...
+                                                    scale_a, skew_a,...
+                                                    C_ae, dataSynced, params);
+RMSE = sqrt((e_pos(:).'*e_pos(:))./length(dataSynced.t));
+disp(['Position Estimate RMSE After Calibration (m): ' , num2str(RMSE)])
+RMSE = sqrt((e_vel(:).'*e_vel(:))./length(dataSynced.t));
+disp(['Velocity Estimate RMSE After Calibration (m/s): ' , num2str(RMSE)])
 
 %% Results and Output
 g_e = [0;0;-9.80665];

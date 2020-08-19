@@ -39,9 +39,6 @@ options.scale = true;
 options.skew = true;
 options.grav = true;
 options.start_index = 1;
-options.max_total_states = 20000;
-options.interval_size = 2000;
-options.batch_size = 500;
 [results, dataCalibrated] = calibrateImu(dataAligned,options)
 
 %% Dead Reckon Actual Data to Test
@@ -57,6 +54,7 @@ phi_ba = DCM_TO_ROTVEC(traj_so3.C_ba);
 phi_ba_mocap = DCM_TO_ROTVEC(dataCalibrated.C_ba);
 r_zw_a_rk4 = traj_rk4.r_zw_a;
 r_zw_a_so3 = traj_so3.r_zw_a;
+v_zwa_a_so3 = traj_so3.v_zwa_a;
 
 % 3D Plot
 figure

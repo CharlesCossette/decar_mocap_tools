@@ -105,7 +105,7 @@ data_mocap.RigidBody.r_zw_a = traj.r_zw_a;
 data_mocap.RigidBody.t = t_mocap;
 data_mocap.RigidBody.type = 'Rigid Body';
 data_mocap.RigidBody.C_ba = traj.C_ba;
-data_mocap.RigidBody.q_ba = dcmToQuat(traj.C_ba).';
+data_mocap.RigidBody.q_ba = dcmToQuat(traj.C_ba);
 data_mocap.RigidBody.gapIntervals = [];
 data_mocap.RigidBody.staticIntervals = mocapGetStaticIntervals(data_mocap.RigidBody,...
                                                               2,...
