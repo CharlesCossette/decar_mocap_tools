@@ -44,7 +44,7 @@ dataAligned = alignFrames(dataSynced)
 %%
 options.frames = true;
 options.bias = true;
-options.scale = false;
-options.skew = false;
+options.scale = true;
+options.skew = true;
 options.grav = true;
 [results, dataCalibrated] = calibrateImu(dataAligned, options)
