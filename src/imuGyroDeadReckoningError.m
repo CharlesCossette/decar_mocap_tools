@@ -51,9 +51,6 @@ function [err, error_attitude] = ...
             dt = t_span(lv2+1) - t_span(lv2);
             % Use zero-order hold. TODO CHECK THIS IS NOT GETTING MESSED UP
             measurement_index = find(data_corrected.t <= t_span(lv2), 1, 'last');    
-            if measurement_index ~= (lv1 + lv2 - 1)
-                stop = 1
-            end
             omega_ba_b = data_corrected.gyro(:,measurement_index);
             C_ba_dr(:,:,lv2+1) = ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_dr(:,:,lv2);
         end

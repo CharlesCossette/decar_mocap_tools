@@ -65,9 +65,6 @@ function [err, error_position, error_velocity, error_accel] = ...
             
             % Use zero-order hold
             measurement_index = find(data_corrected.t <= t_span(lv2), 1, 'last'); 
-            if measurement_index ~= (lv1 + lv2 - 1)
-                stop = 1
-            end
             u_acc_b = data_corrected.accel(:,measurement_index);
             C_ba = dataSynced.C_ba(:,:,measurement_index); % TODO CHECK INDEX.
             v_zwa_a_dr(:,lv2+1) = v_zwa_a_dr(:,lv2) + (C_ba.'*u_acc_b + g_a)*dt;

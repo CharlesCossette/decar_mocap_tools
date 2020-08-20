@@ -1,10 +1,83 @@
-function [results, dataCalibrated] = calibrateImu(dataSynced, options, import_results)
-% Find the DCM C_sm representing the rotation between the sensor frame of the
-% IMU (F_s) and the body frame assigned by the Mocap system (F_m), as well
-% as the accelerometer and gyroscope biases.
-% Requires the complexStepJacobianLie code from decar_utils.
+function [results, data_calibrated] = calibrateImu(data_synced, options, import_results)
+%IMUCALIBRATE Determines the calibration parameters of the accelerometer
+% and gyroscope, which are the sensorframe-to-bodyframe DCMs, biases, scale
+% factors, axis misalignments ("skew"), and mocap local frame gravity
+% misalignment. This is done by minimizing the dead-reckoning error.
+%
+% Example uses:
+%       results = imuCalibrate(data_synced)
+%       results = imuCalibrate(data_synced, options)
+%       results = imuCalibrate(data_synced, options, import_results)
+%       results = imuCalibrate(data_synced, [], import_results)
+%       [results, data_calibrated] = imuCalibrate(data_synced)
+%
+% PARAMETERS:
+% -----------
+% data_synced: struct with fields (output of imuMocapSyncTime())
+%       t: [N x 1] double
+%           imu timestamps in the mocap clock reference
+%       accel: [3 x N] double
+%           accelerometer raw data
+%       gyro: [3 x N] double
+%           gyroscope raw data
+%       accel_mocap: [3 x N] double
+%           fake accelerometer measurements from ground truth
+%       gyro_mocap: [3 x N] double
+%           fake gyroscope measurements from ground truth
+%       r_zw_a: [3 x N] double
+%           ground truth position of IMU in mocap local frame
+%       C_ba: [3 x 3 x N] double
+%           ground truth attitude of mocap body frame.
+% options: (optional) struct 
+%       User can pass a struct with a subset of any of the following fields
+%       to toggle on/off different calibration parameters. If a field is
+%       not included in the options struct, a default value will take its
+%       place.
+%       frames: (optional) boolean
+%           Set to true to calibrate accel/gyro body frame to sensor frame DCMs
+%       bias: (optional) boolean
+%           Set to true to calibrate accel/gyro biases.
+%       scale: (optional) boolean
+%           Set to true to calibrate accel/gyro scale factors.
+%       skew: (optional) boolean
+%           Set to true to calibrate accel/gyro axis misalignments.
+%       grav: (optional) boolean
+%           Set to true to calibrate mocap local frame gravity vector.
+% import_results: (optional) struct
+%       Values for the calibration parameters to either use as an initial
+%       guess if that specific parameter is being calibrated, or to use as
+%       a fixed value if it is not being calibrated.
+%       C_ms_accel: (optional) [3 x 3] double
+%           DCM between mocap body frame and accel sensor frame.
+%       C_ms_accel: (optional) [3 x 3] double
+%           DCM between mocap body frame and gyro sensor frame.
+%       bias_accel: (optional) [3 x 1] double
+%           Accelerometer bias
+%       bias_gyro: (optional) [3 x 1] double
+%           Gyroscope bias
+%       scale_accel: (optional) [3 x 1] double
+%           Accelerometer scale factor
+%       scale_gyro: (optional) [3 x 1] double
+%           Gyroscope scale factor
+%       skew_accel: (optional) [3 x 1] double
+%           Accelerometer axis misalignments
+%       skew_gyro: (optional) [3 x 1] double
+%           Gyroscope axis misalignments
+%       g_a: (optional) [3 x 1] double
+%           Gravity vector in frame a, the mocap local frame.
+% 
+% RETURNS:
+% ---------
+% results: struct
+%       has the same fields and descriptions as import_results
+% data_calibrated: struct
+%       has the same fields and description as data_synced except for the
+%       following fields
+%       accel: [3 x N] double
+%           CALIBRATED accelerometer measurements.
+%       gyro: [3 x N] double
+%           CALIBRATED gyroscope measurements.
 
-% TODO: input parser to turn off/on the different calibration parameters.
 if nargin < 1
     error('Missing data')
 end
@@ -22,17 +95,22 @@ end
                                                         processOptions(options);
 
 params.end_index = params.start_index + params.max_total_states - 1;
-if params.end_index > length(dataSynced.t)
-    params.end_index = length(dataSynced.t);
+if params.end_index > length(data_synced.t)
+    params.end_index = length(data_synced.t);
 end
 
 [C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
                                            processImportResults(import_results);
-%% LEAST SQUARES OPTIMIZATION
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                       
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%% LEAST SQUARES OPTIMIZATION %%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % compute error vector once
 [~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
                                                  scale_a, scale_g, skew_a, skew_g,...
-                                                 C_ae, dataSynced, params);
+                                                 C_ae, data_synced, params);
 % Initialize figure handles.
 figure(1)
 cla
@@ -89,20 +167,20 @@ pause(eps)
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
-cost_history = [];
+cost_history_gyro = [];
 while norm(delta) > tol && iter < 10 && delta_cost >  tol
     indx_counter = 1;
     
     % compute error vector
     [e, e_att] = imuGyroDeadReckoningError(C_mg, bias_g, scale_g, skew_g,...
-                                                   dataSynced, params);  
+                                                   data_synced, params);  
     
     cost = 0.5*(e.'*e)
     
-    if ~isempty(cost_history)
-        delta_cost = abs((cost - cost_history(end))/(cost - cost_history(1)));
+    if ~isempty(cost_history_gyro)
+        delta_cost = abs((cost - cost_history_gyro(end))/(cost - cost_history_gyro(1)));
     end
-    cost_history = [cost_history; cost];
+    cost_history_gyro = [cost_history_gyro; cost];
 
     h7.YData = e_att(1,:);
     h8.YData = e_att(2,:);
@@ -114,8 +192,9 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_frames
         f_Cmg = @(C) imuGyroDeadReckoningError(C, bias_g, scale_g, skew_g,...
-                                                   dataSynced, params); 
-        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,'direction','left');
+                                                   data_synced, params); 
+        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,...
+                                         'direction','left');
 
         A = [A, A_phi_g];
         phi_indices = indx_counter:indx_counter+2;
@@ -124,7 +203,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_bias
         f_bias = @(b) imuGyroDeadReckoningError(C_mg, b, scale_g, skew_g,...
-                                                   dataSynced, params); 
+                                                   data_synced, params); 
         A_bias = complexStepJacobian(f_bias, bias_g);
         A = [A, A_bias];
         bias_indices = indx_counter:indx_counter + 2;
@@ -133,7 +212,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_scale
         f_scale = @(s) imuGyroDeadReckoningError(C_mg, bias_g, s, skew_g,...
-                                                   dataSynced, params); 
+                                                   data_synced, params); 
         A_scale = complexStepJacobian(f_scale, scale_g);
         A = [A, A_scale];
         scale_indices = indx_counter:indx_counter + 2;
@@ -142,7 +221,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_skew
         f_skew = @(s) imuGyroDeadReckoningError(C_mg, bias_g, scale_g, s,...
-                                                   dataSynced, params); 
+                                                   data_synced, params); 
         A_skew = complexStepJacobian(f_skew, skew_g);
         A = [A, A_skew];
         skew_indices = indx_counter:indx_counter + 2;
@@ -186,8 +265,8 @@ clear del_phi_g del_bias_g del_scale_g del_skew_g
 disp('Gyroscope calibration complete.')
 % compute error vector
 [~, e_att] = imuGyroDeadReckoningError(C_mg, bias_g, scale_g, skew_g,...
-                                                   dataSynced, params);  
-RMSE = sqrt((e_att(:).'*e_att(:))./length(dataSynced.t));
+                                                   data_synced, params);  
+RMSE = sqrt((e_att(:).'*e_att(:))./length(data_synced.t));
 disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACCEL CALIBRATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -195,21 +274,21 @@ disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
-cost_history = [];
+cost_history_accel = [];
 while norm(delta) > tol && iter < 10 && delta_cost >  tol
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, e_acc] = imuAccelDeadReckoningError(C_ma, bias_a,...
-                                                    scale_a, skew_a,...
-                                                    C_ae, dataSynced, params);
+    [e, e_pos, e_vel, ~] = imuAccelDeadReckoningError(C_ma, bias_a,...
+                                                      scale_a, skew_a,...
+                                                      C_ae, data_synced, params);
     
     cost = 0.5*(e.'*e)
     
-    if ~isempty(cost_history)
-        delta_cost = abs((cost - cost_history(end))/(cost - cost_history(1)));
+    if ~isempty(cost_history_accel)
+        delta_cost = abs((cost - cost_history_accel(end))/(cost - cost_history_accel(1)));
     end
-    cost_history = [cost_history; cost];
+    cost_history_accel = [cost_history_accel; cost];
 
     h1.YData = e_pos(1,:);
     h2.YData = e_pos(2,:);
@@ -227,18 +306,19 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_frames
         f_Cma = @(C) imuAccelDeadReckoningError(C, bias_a, scale_a, skew_a,...
-                                                C_ae, dataSynced, params);
+                                                C_ae, data_synced, params);
                                        
-        A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,'direction','left');
+        A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,...
+                                         'direction','left');
 
         A = [A, A_phi_a];
-        phi_indices = indx_counter:indx_counter+2;
+        phi_indices = indx_counter:indx_counter + 2;
         indx_counter = indx_counter + 3;
     end
     
     if do_bias
         f_bias = @(b) imuAccelDeadReckoningError(C_ma, b, scale_a, skew_a,...
-                                                C_ae, dataSynced, params);
+                                                C_ae, data_synced, params);
         A_bias = complexStepJacobian(f_bias, bias_a);
         A = [A, A_bias];
         bias_indices = indx_counter:indx_counter + 2;
@@ -247,7 +327,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_scale
         f_scale = @(s) imuAccelDeadReckoningError(C_ma, bias_a, s, skew_a,...
-                                                C_ae, dataSynced, params);
+                                                C_ae, data_synced, params);
                                        
         A_scale = complexStepJacobian(f_scale, scale_a);
         A = [A, A_scale];
@@ -257,7 +337,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_skew
         f_skew = @(s) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, s,...
-                                                C_ae, dataSynced, params);
+                                                C_ae, data_synced, params);
         A_skew = complexStepJacobian(f_skew, skew_a);
         A = [A, A_skew];
         skew_indices = indx_counter:indx_counter + 2;
@@ -266,7 +346,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     
     if do_grav
         f_C_ae = @(C) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, skew_a,...
-                                                C, dataSynced, params);
+                                                C, data_synced, params);
         f_phi_ae = @(phi) f_C_ae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phi_ae = complexStepJacobian(f_phi_ae,[0;0]);
         A = [A, A_phi_ae];
@@ -318,10 +398,10 @@ disp('Accelerometer/Gravity Calibration Complete')
 % compute error vector
 [~, e_pos, e_vel] = imuAccelDeadReckoningError(C_ma, bias_a,...
                                                     scale_a, skew_a,...
-                                                    C_ae, dataSynced, params);
-RMSE = sqrt((e_pos(:).'*e_pos(:))./length(dataSynced.t));
+                                                    C_ae, data_synced, params);
+RMSE = sqrt((e_pos(:).'*e_pos(:))./length(data_synced.t));
 disp(['Position Estimate RMSE After Calibration (m): ' , num2str(RMSE)])
-RMSE = sqrt((e_vel(:).'*e_vel(:))./length(dataSynced.t));
+RMSE = sqrt((e_vel(:).'*e_vel(:))./length(data_synced.t));
 disp(['Velocity Estimate RMSE After Calibration (m/s): ' , num2str(RMSE)])
 
 %% Results and Output
@@ -336,45 +416,45 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
-dataCalibrated = imuCorrectMeasurements(dataSynced, results);
+data_calibrated = imuCorrectMeasurements(data_synced, results);
 
 % Calibrated ground truth accel/gyro measurements.
 g_a = results.g_a;
-mocap_gyro = dataSynced.gyro_mocap;
-mocap_accel = zeros(3, length(dataSynced.t));
-for lv1 = 1:length(dataSynced.t)
-    mocap_accel(:,lv1) = dataSynced.accel_mocap(:,lv1) - dataSynced.C_ba(:,:,lv1)*(g_a - g_e);
+mocap_gyro = data_synced.gyro_mocap;
+mocap_accel = zeros(3, length(data_synced.t));
+for lv1 = 1:length(data_synced.t)
+    mocap_accel(:,lv1) = data_synced.accel_mocap(:,lv1) - data_synced.C_ba(:,:,lv1)*(g_a - g_e);
 end
 
-dataCalibrated.t = dataSynced.t;
-dataCalibrated.accel_mocap = mocap_accel;
-dataCalibrated.gyro_mocap = mocap_gyro;
+data_calibrated.t = data_synced.t;
+data_calibrated.accel_mocap = mocap_accel;
+data_calibrated.gyro_mocap = mocap_gyro;
 
 %% Plotting to evaluate performance visually
 % Plot calibrated data - accelerometers
 figure
 sgtitle('Accelerometer')
 subplot(3,1,1)
-plot(dataCalibrated.t, dataCalibrated.accel(1,:))
+plot(data_calibrated.t, data_calibrated.accel(1,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accel_mocap(1,:))
+plot(data_calibrated.t, data_calibrated.accel_mocap(1,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\ddot{x}$ [$m/s^2$]', 'Interpreter', 'Latex')
 legend('Calibrated IMU Data', 'Mocap Data')
 subplot(3,1,2)
-plot(dataCalibrated.t, dataCalibrated.accel(2,:))
+plot(data_calibrated.t, data_calibrated.accel(2,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accel_mocap(2,:))
+plot(data_calibrated.t, data_calibrated.accel_mocap(2,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\ddot{y}$ [$m/s^2$]', 'Interpreter', 'Latex')
 subplot(3,1,3)
-plot(dataCalibrated.t, dataCalibrated.accel(3,:))
+plot(data_calibrated.t, data_calibrated.accel(3,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.accel_mocap(3,:))
+plot(data_calibrated.t, data_calibrated.accel_mocap(3,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -384,9 +464,9 @@ ylabel('$\ddot{z}$ [$m/s^2$]', 'Interpreter', 'Latex')
 figure
 sgtitle('Gyroscope')
 subplot(3,1,1)
-plot(dataCalibrated.t, dataCalibrated.gyro(1,:))
+plot(data_calibrated.t, data_calibrated.gyro(1,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.gyro_mocap(1,:))
+plot(data_calibrated.t, data_calibrated.gyro_mocap(1,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -394,17 +474,17 @@ ylabel('$\omega_x$ [rad/$s$]', 'Interpreter', 'Latex')
 legend('Calibrated IMU Data', 'Mocap Data')
 
 subplot(3,1,2)
-plot(dataCalibrated.t, dataCalibrated.gyro(2,:))
+plot(data_calibrated.t, data_calibrated.gyro(2,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.gyro_mocap(2,:))
+plot(data_calibrated.t, data_calibrated.gyro_mocap(2,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$\omega_y$ [rad/$s$]', 'Interpreter', 'Latex')
 subplot(3,1,3)
-plot(dataCalibrated.t, dataCalibrated.gyro(3,:))
+plot(data_calibrated.t, data_calibrated.gyro(3,:))
 hold on
-plot(dataCalibrated.t, dataCalibrated.gyro_mocap(3,:))
+plot(data_calibrated.t, data_calibrated.gyro_mocap(3,:))
 hold off
 grid on
 xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
@@ -412,7 +492,7 @@ ylabel('$\omega_z$ [rad/$s$]', 'Interpreter', 'Latex')
 
 % Plot evolution of cost function
 figure
-plot(cost_history)
+plot(cost_history_gyro)
 grid on
 xlabel('Iteration Number', 'Interpreter', 'Latex')
 ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
@@ -491,7 +571,7 @@ else
     C_ma = eye(3);
 end
 if isfield(import_results,'C_ms_gyro')
-    C_mg = import_results.C_mg_accel;
+    C_mg = import_results.C_ms_accel;
 else
     C_mg = eye(3);
 end
@@ -526,9 +606,10 @@ else
     skew_g = [0;0;0];
 end
 if isfield(import_results,'g_a')
-    a = cross(import_results.g_a, [0;0;-9.80665]);
+    g_e =  [0;0;-9.80665];
+    a = cross(import_results.g_a, g_e);
     a = a./norm(a);
-    theta = arccos(dot(import_results.g_a, [0;0;-9.80665])/(9.80665^2));
+    theta = acos(dot(import_results.g_a, g_e)/(9.80665^2));
     phi = a*theta;
     C_ae = ROTVEC_TO_DCM(phi);
 else
