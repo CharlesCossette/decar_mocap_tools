@@ -15,6 +15,7 @@ function s = splineDerv(pp,t,q)
 % --------
 % s: [n x N] double
 %       spline values at t
+
     n = pp.order - 1;
     D = diag(n:-1:1,1);
     for lv1 = 1:q
