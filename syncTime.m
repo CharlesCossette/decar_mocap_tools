@@ -50,6 +50,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     t_synced = dataIMU.t(~isOutsideMocap);
     imu_acc_synced = dataIMU.accel(:,~isOutsideMocap);
     imu_gyr_synced = dataIMU.gyro(:,~isOutsideMocap);
+    imu_mag_synced = dataIMU.mag(:,~isOutsideMocap);
 
     % Refine further using least-squares
     % TODO: make this step optional, as it takes a decent amount of time.
@@ -93,6 +94,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     dataSynced.t = t_synced;
     dataSynced.accel = imu_acc_synced;
     dataSynced.gyro = imu_gyr_synced;
+    dataSynced.mag = imu_mag_synced;
     dataSynced.accel_mocap = mocap_acc_synced;
     dataSynced.gyro_mocap = mocap_omega_synced;
     
