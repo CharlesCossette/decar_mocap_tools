@@ -66,11 +66,11 @@ options.grav = true;
 C_all = getAllPermutationMatrices(0);
 dataCalibratedStatic = dataCalibrated;
 min_cost = Inf;
-for lv2 = 44:1:44
+for lv2 = 25:1:25
    close all
    
    dataCalibratedStatic.mag = C_all(:,:,lv2)*dataCalibrated.mag;
-   [magResults, ~, cost] = magCalibrate(dataCalibratedStatic, options)
+   [magResults, ~, cost] = magCalibrate(dataCalibratedStatic, options);
    
    if cost < min_cost
        min_cost = cost;
