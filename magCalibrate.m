@@ -87,19 +87,19 @@ results.m_a = m_a;
 results.bias_mag = bias_mag;
 results.scale_mag = scale_mag;
 
-dataCalibrated = data_synced;
-% dataCalibrated.mag = C_ms_mag*(dataCalibrated.mag+ bias_mag);
-
 % Compute calibrated m_b.
-m_b_calibrated = zeros(3,length(data_synced.mag));
+m_b_predicted = zeros(3,length(data_synced.mag));
 for lv1=1:1:length(data_synced.mag)
-    m_b_calibrated(:,lv1) = diag(scale_mag) \ C_ms_mag' * data_synced.C_ba(:,:,lv1) * results.m_a - results.bias_mag;
+    m_b_predicted(:,lv1) = diag(scale_mag) \ C_ms_mag' * data_synced.C_ba(:,:,lv1) * results.m_a - results.bias_mag;
 end
+
+dataCalibrated = data_synced;
+dataCalibrated.mag = C_ms_mag*diag(scale_mag)*(data_synced.mag + results.bias_mag);
 
 %% Plotting to evaluate performance visually
 figure
 subplot(3,1,1)
-plot(data_synced.t, m_b_calibrated(1,:))
+plot(data_synced.t, m_b_predicted(1,:))
 hold on
 plot(data_synced.t, data_synced.mag(1,:))
 hold off
@@ -110,7 +110,7 @@ legend('Calibrated $\mathbf{m}_b$', 'Magnetometer measurement',...
        'Interpreter', 'Latex')
 
 subplot(3,1,2)
-plot(data_synced.t, m_b_calibrated(2,:))
+plot(data_synced.t, m_b_predicted(2,:))
 hold on
 plot(data_synced.t, data_synced.mag(2,:))
 hold off
@@ -119,7 +119,7 @@ xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
 ylabel('$m_b^2$ [$\mu T$]', 'Interpreter', 'Latex')
 
 subplot(3,1,3)
-plot(data_synced.t, m_b_calibrated(3,:))
+plot(data_synced.t, m_b_predicted(3,:))
 hold on
 plot(data_synced.t, data_synced.mag(3,:))
 hold off
@@ -141,7 +141,7 @@ function err = errorMag(C_ms_mag, m_a, bias, scale, data_synced)
     for lv1=1:1:length(data_synced.t)
         if data_synced.staticIndices(lv1)
 %             cov_mag = cov(data_synced.mag(:,lv1).');
-            W_mag = 1;%inv(diag(diag(chol(cov_mag))));
+            W_mag = 0;%inv(diag(diag(chol(cov_mag))));
         else
             W_mag = 1;%eye(3);
         end
