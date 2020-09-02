@@ -39,8 +39,15 @@ function [S, t0] = IMU_csv2struct(filename)
         end
     end
 
-    % Timestep
+    % Find the columns that contain the timestamps.
     index = find(contains(headers(headerRow,:),'Timestamp'));
+    
+    % If the data is organized side by side, reorganize using horToVer().
+    if length(index) > 1
+        [data, headers] = horToVer(data, headers, index);
+        index = index(1);
+    end
+    
     S.t = data(:,index);
     t0  = S.t(1);
     S.t = S.t - t0; % Reset the time to start from 0
@@ -93,3 +100,37 @@ function [S, t0] = IMU_csv2struct(filename)
 
 end
 
+
+function [dataVer, headers] = horToVer(dataHor, headers, index)
+    numData = size(dataHor,1);
+    dataVer = dataHor;
+    for lv1=2:1:length(index)
+        % Find key columns associated with the current set of data
+        timestepCol = index(lv1);
+        firstCol    = index(lv1)+1;
+        try 
+            lastCol = index(lv1+1)-1;
+        catch
+            lastCol = size(dataHor,2);
+        end
+        
+        % Update the data 
+        savedData = dataVer(1:end, 1:timestepCol-1);
+        savedDataNaNCols = NaN(size(dataHor,1), lastCol-firstCol+1);
+        newDataTimestamps = dataHor(1:numData,timestepCol);
+        newDataNaNCols = NaN(numData, timestepCol-index(1)-1);
+        newData = dataHor(1:numData, firstCol:lastCol);
+        
+        dataVer = [savedData, savedDataNaNCols;...
+                   newDataTimestamps, newDataNaNCols, newData];
+    end
+    
+    % Update the headers
+    for lv1=length(index):-1:2
+        headers(:,index(lv1)) = [];
+    end
+    
+    % Sort according to the timestamp
+    [~,idx] = sort(dataVer(:,index(1)));
+    dataVer = dataVer(idx,:);
+end
