@@ -37,21 +37,27 @@ for lv1=1:1:length(dataMocap.RigidBody002.t)
 end
 
 %% Fit a b-spline to the Mocap data
-spline = mocap_fitSpline(dataMocap,[],true)
+splineMocap = mocap_fitSpline(dataMocap,[],true)
 
 %% Extract the IMU data
 dataIMU = IMU_csv2struct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
 
 %% Synchronize the Mocap and IMU data
-dataSynced = syncTime(spline.RigidBody002, dataIMU)
+dataSynced = syncTime(splineMocap.RigidBody002, dataIMU)
 
-%% Disregard IMU data within the time ranges where no ground truth was collected
-dataSyncedCleaned = deleteGaps(dataSynced, dataMocap.RigidBody002.mocapGaps)
+%% Obtain indices of gaps in mocap data, and identified stationary periods
+dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.gapIntervals);
+dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, dataMocap.RigidBody.staticIntervals);
 
 %% Align the frames of the Mocap and IMU data to find an initial DCM
 tic
-dataAligned = alignFrames(dataSyncedCleaned)
+dataAligned = alignFrames(dataSynced)
 toc
-%% Refine the DCM between the two assigned body frames
 
-[C_sm, biasAcc, biasGyr] = calibrateFrames(dataAligned)
+%% Refine the DCM between the two assigned body frames
+options.frames = true;
+options.bias = true;
+options.scale = false;
+options.skew = false;
+options.grav = true;
+[results, dataCalibrated] = calibrateImu(dataAligned, options)
