@@ -1,5 +1,5 @@
 function C_list = getAllPermutationMatrices(rightHandedOnly)
-    if ~exist('rightHanded','var')
+    if ~exist('rightHandedOnly','var')
         rightHandedOnly = false;
     end
     

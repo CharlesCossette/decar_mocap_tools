@@ -22,7 +22,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     
     %% Generating Mocap accelerometer data using fitted spline
     [mocap_acc, ~] = getFakeImuMocap(splineStruct,t_mocap,g_a);
-    gap_indices = getIndicesFromInvervals(t_mocap, splineStruct.gapIntervals);
+    gap_indices = getIndicesFromIntervals(t_mocap, splineStruct.gapIntervals);
     mocap_acc(:, gap_indices) = 0;
     %% Finding the timestep in which a spike occurs in both datasets
     % TODO: Find a solution when there is no spike....
@@ -79,6 +79,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     xlabel('$x$ [s]','interpreter','latex')
     ylabel('$a^{zw/a/a}$ [m/s$^2$]','interpreter','latex')
     legend('IMU Data','Mocap Data')
+    title('Acceleration')
     
     figure
     plot(t_synced, vecnorm(imu_gyr_synced))
@@ -102,13 +103,16 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
 end
 
 function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
-    idx = 1:20:numel(t_synced); % Downsample for speed.
+    idx = 1:5:numel(t_synced); % Downsample for speed.
     g_a = [0;0;-9.80665];
     [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced(idx) + dt, g_a);
     gap_indices = getIndicesFromIntervals(t_synced(idx) + dt, splineStruct.gapIntervals);
+    static_indices = getIndicesFromIntervals(t_synced(idx) + dt, splineStruct.staticIntervals);
     error_accel = vecnorm(mocap_acc) - vecnorm(imu_accel(:,idx));
     error_gyro = vecnorm(mocap_gyro) - vecnorm(imu_gyro(:,idx));
     error_accel(:,gap_indices) = 0;
     error_gyro(:,gap_indices) = 0;
-    output = [error_accel(:); error_gyro(:)];
+    error_accel(:,static_indices) = 0;
+    error_gyro(:,static_indices) = 0;
+    output = [0*error_accel(:); error_gyro(:)];
 end
