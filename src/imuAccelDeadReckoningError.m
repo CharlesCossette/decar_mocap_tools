@@ -103,7 +103,7 @@ function [err, error_position, error_velocity, error_accel] = ...
 
     err = [
            error_position(:);
-           error_velocity(:);
+           0.1*error_velocity(:);
            0.1*error_accel(:);
            ];
         
