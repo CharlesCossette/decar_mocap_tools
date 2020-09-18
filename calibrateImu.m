@@ -293,6 +293,11 @@ disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACCEL CALIBRATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Provide an initial guess for the biases.
+if any(data_synced.staticIndices)
+    isStatic = data_synced.staticIndices;
+    bias_a = mean(data_synced.accel_mocap(:,isStatic) - data_synced.accel(:,isStatic),2);
+end
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
