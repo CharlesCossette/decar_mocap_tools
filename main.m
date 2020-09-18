@@ -54,10 +54,27 @@ tic
 dataAligned = alignFrames(dataSynced)
 toc
 
-%% Refine the DCM between the two assigned body frames
+%% Refine the DCM between the Mocap assigned body frame and the IMU frame
 options.frames = true;
 options.bias = true;
 options.scale = false;
 options.skew = false;
 options.grav = true;
 [results, dataCalibrated] = calibrateImu(dataAligned, options)
+
+%% Refine the DCM between the Mocap assigned body frame and the magnetometer frame
+C_all = getAllPermutationMatrices(0);
+dataCalibratedStatic = dataCalibrated;
+min_cost = Inf;
+for lv2 = 25:1:25
+   close all
+   
+   dataCalibratedStatic.mag = C_all(:,:,lv2)*dataCalibrated.mag;
+   [magResults, ~, cost] = magCalibrate(dataCalibratedStatic, options);
+   
+   if cost < min_cost
+       min_cost = cost;
+       align_final = C_all(:,:,lv2);
+       magResults_final = magResults;
+   end
+end

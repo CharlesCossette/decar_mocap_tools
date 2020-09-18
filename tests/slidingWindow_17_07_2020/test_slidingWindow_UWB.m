@@ -16,12 +16,12 @@ splineMocap = mocap_fitSpline(dataMocap,[],true)
 
 % Adjust the spline such that it is also synchronized with the IMU/UWB
 % data.
-splineMocap.RigidBody002.breaks = splineMocap.RigidBody002.breaks - offset;
+% splineMocap.RigidBody002.breaks = splineMocap.RigidBody002.breaks - offset;
 
 %% Extract the UWB data
 % To synchronize the IMU and the UWB files, ensure that "imuFirst_t" comes
 % from the same device that timestamped the UWB measurements.
-dataUWB = UWB_csv2struct('2020_07_15_trial2_slidingwindow_range.csv', imuFirst_t)
+dataUWB = UWB_csv2struct('2020_07_15_trial2_slidingwindow_range.csv', imuFirst_t - offset)
 
 %% Extract position of UWB tags relative to the reference point of the Mocap System
 % r_Ltag2z_b = 0x6a5d, r_Rtag2z_b = 0x6a26, r_Ltag1z_b = 0x6a25, r_Rtag1z_b = 0x6a7b

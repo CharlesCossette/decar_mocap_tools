@@ -43,7 +43,8 @@ for lv1=1:1:numel(rigidBodies)
         
         % Saving the computed B-spline fit.
         splineMocap.(bodyName{1}) = pp;
-        
+        splineMocap.(bodyName{1}).gapIntervals = dataMocap.(bodyName{1}).gapIntervals;
+        splineMocap.(bodyName{1}).staticIntervals = dataMocap.(bodyName{1}).staticIntervals;
         % Evaluating the performance of the fit, visually
         % user-defined trigger
         if visualBool

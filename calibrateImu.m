@@ -29,24 +29,45 @@ function [results, data_calibrated] = calibrateImu(data_synced, options, import_
 %       C_ba: [3 x 3 x N] double
 %           ground truth attitude of mocap body frame.
 % options: (optional) struct 
-%       User can pass a struct with a subset of any of the following fields
-%       to toggle on/off different calibration parameters. If a field is
-%       not included in the options struct, a default value will take its
+%   User can pass a struct with a subset of any of the following fields
+%   to toggle on/off different calibration parameters. If a field is
+%   not included in the options struct, a default value will take its
 %       place.
 %       frames: (optional) boolean
-%           Set to true to calibrate accel/gyro body frame to sensor frame DCMs
+%           Default true. Toggle true/false to calibrate accel/gyro body  
+%           frame to sensor frame DCMs
 %       bias: (optional) boolean
-%           Set to true to calibrate accel/gyro biases.
+%           Default true. Toggle true/false to calibrate accel/gyro biases.
 %       scale: (optional) boolean
-%           Set to true to calibrate accel/gyro scale factors.
+%           Default true. Toggle true/false to calibrate accel/gyro scale 
+%           factors.
 %       skew: (optional) boolean
-%           Set to true to calibrate accel/gyro axis misalignments.
+%           Default true. Toggle true/false to calibrate accel/gyro axis 
+%           misalignments.
 %       grav: (optional) boolean
-%           Set to true to calibrate mocap local frame gravity vector.
+%           Default true. Toggle true/false to calibrate mocap local frame 
+%           gravity vector.
+%   The following options have priority over the previous. 
+%       frame_accel: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       frame_gyro: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       bias_accel: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       bias_gyro: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       scale_accel: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       scale_gyro: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       skew_accel: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
+%       skew_gyro: (optional) boolean
+%           Toggle true/false to override accel sensorframe calibration.
 % import_results: (optional) struct
-%       Values for the calibration parameters to either use as an initial
-%       guess if that specific parameter is being calibrated, or to use as
-%       a fixed value if it is not being calibrated.
+%   Values for the calibration parameters to either use as an initial
+%   guess if that specific parameter is being calibrated, or to use as
+%   a fixed value if it is not being calibrated.
 %       C_ms_accel: (optional) [3 x 3] double
 %           DCM between mocap body frame and accel sensor frame.
 %       C_ms_accel: (optional) [3 x 3] double
@@ -91,8 +112,9 @@ if nargin < 3
     end
     import_results = struct();
 end
-[tol, do_frames, do_bias, do_scale, do_skew, do_grav, params] = ...
-                                                        processOptions(options);
+[tol, do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
+do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav, params]...
+                                                       = processOptions(options)
 
 params.end_index = params.start_index + params.max_total_states - 1;
 if params.end_index > length(data_synced.t)
@@ -190,7 +212,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     % compute Jacobians
     A = [];
     
-    if do_frames
+    if do_frame_gyro
         f_Cmg = @(C) imuGyroDeadReckoningError(C, bias_g, scale_g, skew_g,...
                                                    data_synced, params); 
         A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,...
@@ -201,7 +223,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_bias
+    if do_bias_gyro
         f_bias = @(b) imuGyroDeadReckoningError(C_mg, b, scale_g, skew_g,...
                                                    data_synced, params); 
         A_bias = complexStepJacobian(f_bias, bias_g);
@@ -210,7 +232,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_scale
+    if do_scale_gyro
         f_scale = @(s) imuGyroDeadReckoningError(C_mg, bias_g, s, skew_g,...
                                                    data_synced, params); 
         A_scale = complexStepJacobian(f_scale, scale_g);
@@ -219,7 +241,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_skew
+    if do_skew_gyro
         f_skew = @(s) imuGyroDeadReckoningError(C_mg, bias_g, scale_g, s,...
                                                    data_synced, params); 
         A_skew = complexStepJacobian(f_skew, skew_g);
@@ -240,22 +262,22 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end 
     
     % decompose and update
-    if do_frames
+    if do_frame_gyro
         del_phi_g = delta(phi_indices);
         C_mg = ROTVEC_TO_DCM(-del_phi_g)*C_mg;
     end
     
-    if do_bias
+    if do_bias_gyro
         del_bias_g = delta(bias_indices);
         bias_g = bias_g + del_bias_g;
     end
     
-    if do_scale
+    if do_scale_gyro
         del_scale_g = delta(scale_indices);
         scale_g = scale_g + del_scale_g;
     end
     
-    if do_skew
+    if do_skew_gyro
         del_skew_g = delta(skew_indices);
         skew_g = skew_g + del_skew_g;
     end
@@ -271,6 +293,11 @@ disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACCEL CALIBRATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Provide an initial guess for the biases.
+if any(data_synced.staticIndices)
+    isStatic = data_synced.staticIndices;
+    bias_a = mean(data_synced.accel_mocap(:,isStatic) - data_synced.accel(:,isStatic),2);
+end
 delta = Inf;
 iter = 0;
 delta_cost = Inf;
@@ -304,7 +331,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     % compute Jacobians
     A = [];
     
-    if do_frames
+    if do_frame_accel
         f_Cma = @(C) imuAccelDeadReckoningError(C, bias_a, scale_a, skew_a,...
                                                 C_ae, data_synced, params);
                                        
@@ -316,7 +343,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_bias
+    if do_bias_accel
         f_bias = @(b) imuAccelDeadReckoningError(C_ma, b, scale_a, skew_a,...
                                                 C_ae, data_synced, params);
         A_bias = complexStepJacobian(f_bias, bias_a);
@@ -325,7 +352,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_scale
+    if do_scale_accel
         f_scale = @(s) imuAccelDeadReckoningError(C_ma, bias_a, s, skew_a,...
                                                 C_ae, data_synced, params);
                                        
@@ -335,7 +362,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         indx_counter = indx_counter + 3;
     end
     
-    if do_skew
+    if do_skew_accel
         f_skew = @(s) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, s,...
                                                 C_ae, data_synced, params);
         A_skew = complexStepJacobian(f_skew, skew_a);
@@ -366,26 +393,26 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end 
     
     % decompose and update
-    if do_frames
+    if do_frame_accel
         del_phi_a = delta(phi_indices(1:3));
         C_ma = ROTVEC_TO_DCM(-del_phi_a)*C_ma;
     end
     
-    if do_bias
+    if do_bias_accel
         del_bias_a = delta(bias_indices(1:3));
         bias_a = bias_a + del_bias_a;
     end
     
-    if do_scale
+    if do_scale_accel
         del_scale_a = delta(scale_indices(1:3));
         scale_a = scale_a + del_scale_a;
     end
     
-    if do_skew
+    if do_skew_accel
         del_skew_a = delta(skew_indices(1:3));
         skew_a = skew_a + del_skew_a;
     end
-    
+   
     if do_grav
         del_phi_ae = delta(grav_indices);
         C_ae = ROTVEC_TO_DCM(-[del_phi_ae;0])*C_ae;
@@ -495,12 +522,13 @@ figure
 plot(cost_history_gyro)
 grid on
 xlabel('Iteration Number', 'Interpreter', 'Latex')
-ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
-    
+ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')  
 end
 
-function [tol, do_frames, do_bias, do_scale, do_skew, do_grav, params] = ...
-                                                        processOptions(options)
+%% OPTIONS PROCESSING
+function [tol, do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
+          do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav,...
+          params] = processOptions(options)
 if isfield(options,'tolerance')
     tol = options.tolerance;
 else
@@ -508,27 +536,35 @@ else
 end
 
 if isfield(options,'frames')
-    do_frames = options.frames;
+    do_frame_accel = options.frames;    
+    do_frame_gyro = options.frames;
 else
-    do_frames = true;
+    do_frame_accel = true;
+    do_frame_gyro = true;
 end
 
 if isfield(options,'bias')
-    do_bias = options.bias;
+    do_bias_accel = options.bias;
+    do_bias_gyro = options.bias;
 else
-    do_bias = true;
+    do_bias_accel = true;
+    do_bias_gyro = true;
 end
 
 if isfield(options,'scale')
-    do_scale = options.scale;
+    do_scale_accel = options.scale;
+    do_scale_gyro = options.scale;
 else
-    do_scale = true;
+    do_scale_accel = true;
+    do_scale_gyro = true;
 end
 
 if isfield(options,'skew')
-    do_skew = options.skew;
+    do_skew_accel = options.skew;
+    do_skew_gyro = options.skew;
 else
-    do_skew = true;
+    do_skew_accel = true;
+    do_skew_gyro = true;
 end
 
 if isfield(options,'grav')
@@ -536,6 +572,39 @@ if isfield(options,'grav')
 else
     do_grav = true;
 end
+
+if isfield(options,'frame_accel')
+    do_frame_accel = options.frame_accel;
+end
+
+if isfield(options,'frame_gyro')
+    do_frame_gyro = options.frame_gyro;
+end
+
+if isfield(options,'bias_accel')
+    do_bias_accel = options.bias_accel;
+end
+
+if isfield(options,'bias_gyro')
+    do_bias_gyro = options.bias_gyro;
+end
+
+if isfield(options,'scale_accel')
+    do_scale_accel = options.scale_accel;
+end
+
+if isfield(options,'scale_gyro')
+    do_scale_gyro = options.scale_gyro;
+end
+
+if isfield(options,'skew_accel')
+    do_skew_accel = options.skew_accel;
+end
+
+if isfield(options,'skew_gyro')
+    do_skew_gyro = options.skew_gyro;
+end
+
 
 if isfield(options,'interval_size')
     params.interval_size = options.interval_size;
@@ -562,7 +631,7 @@ else
 end
 
 end
-
+%% IMPORT RESULTS PROCESSING
 function [C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
                                            processImportResults(import_results)
 if isfield(import_results,'C_ms_accel')
