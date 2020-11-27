@@ -33,7 +33,8 @@ function [data, t_0] = sensorsCsvToStruct(filename)
         %data = cleanupUWB(data, data_raw, header_names);
         fn = fields(data_series);
         data_series.t = data_series.(fn{1}); % I hate this. 
-        
+        data_series.t_0 = data_series.t(1);
+        data_series.t = data_series.t - data_series.t_0;
         data.(['data',num2str(lv1)]) = data_series;
     end
     t_0 = 0;
