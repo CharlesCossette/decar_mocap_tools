@@ -1,5 +1,19 @@
-function mocap_play(dataMocap)
-
+function mocapPlay(dataMocap)
+%MOCAPPLAY Plays an animation of a specific mocap data files.
+%
+% Example uses:
+%    
+%    mocapPlay(data_mocap)
+%    mocapPlay('mocap_data_file.csv')
+%
+% Requires decar_animate.
+    if isa(dataMocap,'char') || isa(dataMocap,'string')
+        dataMocap = mocap_csv2struct(dataMocap);
+    elseif ~isa(dataMocap,'struct')
+        error('First argument must either be a struct or a filename.')
+    end
+    
+    
     % Extract only rigid bodies
     fieldnames = fields(dataMocap);
     rigidBodies = {};
