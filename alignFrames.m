@@ -40,10 +40,17 @@ for lv1 = 1:size(C_all,3)
 end
 
 if any(C_ma_best ~= C_mg_best,'all')
-    disp('Different accel/gyro frames detected!')
-    disp('Gyro will be transformed to the same frame as accel.')
+    warning('DECAR_MOCAP_TOOLS: Different accel/gyro frames detected!')
+    warning('DECAR_MOCAP_TOOLS: Gyro will be transformed to the same frame as accel.')
     
 end
+
+if rightHandedOnly
+    if abs(det(C_ma_best) - 1) > 1e-14 || abs(det(C_mg_best) - 1) > 1e-14 
+        error('DECAR_MOCAP_TOOLS: Program error. DCM determinant is negative.')
+    end
+end
+
 disp('Best fit accelerometer DCM:')
 C_ma_best
 disp('Best fit gyroscope DCM:')
