@@ -51,8 +51,12 @@ mainly concern IMU data.
 3. find a way to deal with the bugs with finding the header range
 4. ~~ignore points where no Mocap data was collected when doing LS~~
 5. IMU/pivot point offset
-6. script to find m_a
+6. Move alignFrames to inside imuCalibrate
 7. script to extract sensor characteristics (biases, covariances, etc)
 8. ~~Add a static detector to the mocap data~~
 9. Add a static detector to the IMU data
-8. clean up/comment/standardize code
+10. add comments and documentation to all functions
+11. Calibrate full IMU pose in imuCalibrate 
+12. Split up imuCalibrate into accelCalibrate and gyroCalibrate, and then have imuCalibrate call them with magCalibrate
+13. Automate the initial guess of magCalibrate
+14. Create "examples" folder showing minimal working example of imu, gyro, mag calibration
