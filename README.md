@@ -60,3 +60,4 @@ mainly concern IMU data.
 12. Split up imuCalibrate into accelCalibrate and gyroCalibrate, and then have imuCalibrate call them with magCalibrate
 13. Automate the initial guess of magCalibrate
 14. Create "examples" folder showing minimal working example of imu, gyro, mag calibration
+15. Allow imuMocapSync(filename1, filename2)
