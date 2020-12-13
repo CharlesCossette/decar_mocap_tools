@@ -1,4 +1,4 @@
-function  S = mocap_csv2struct(filename)
+function  S = mocapCsvToStruct(filename)
 %MOCAP_CSV2STRUCT Extracts the relevant information from the raw Optitrack
 %csv file and stores it into a struct. Also removes any markers with a
 %visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
