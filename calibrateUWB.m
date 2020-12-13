@@ -73,7 +73,13 @@ function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_
         % point from "r_pz_b".
         idx1 = find(contains(tag_names, tag1));
         idx2 = find(contains(tag_names, tag2));
-
+        if isempty(idx1) 
+            error(['DECAR_MOCAP_TOOLS: Did not specify location of ', tag1]);
+        end
+        if isempty(idx2) 
+            error(['DECAR_MOCAP_TOOLS: Did not specify location of ', tag2]);
+        end
+        
         % remove missing values
         [meas_rm_missing, meas_missing_idx] = rmmissing(data_uwb.(field_iter));
         t_rm_missing = data_uwb.t(~meas_missing_idx);
@@ -156,7 +162,7 @@ function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_
         xlabel('$t$ [s]', 'Interpreter', 'Latex')
         ylabel('$e$ [m]', 'Interpreter', 'Latex')
         legend('Error between UWB measurement and ground truth distance', 'Spline fit')
-        title(['Spline fit on the error of the distance measurements between tags ', tag1, ' and ', tag2])
+        title({'Spline fit on the error of the distance',[' measurements between tags ', tag1, ' and ', tag2]})
         
         % Plotting - final results
         figure
@@ -167,7 +173,7 @@ function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_
         xlabel('$t$ [s]', 'Interpreter', 'Latex')
         ylabel('$d$ [m]', 'Interpreter', 'Latex')
         legend('Corrected UWB Range Measurement', 'Mocap Data')
-        title(['Bias calibrated distance measurements between tags ', tag1, ' and ', tag2])
+        title({'Bias-calibrated distance measurements',['between tags ', tag1, ' and ', tag2]})
         
         % Plotting - final error
         figure
@@ -175,7 +181,7 @@ function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_
         grid
         xlabel('$t$ [s]', 'Interpreter', 'Latex')
         ylabel('$d$ [m]', 'Interpreter', 'Latex')
-        title(['Error of bias calibrated distance measurements between tags ', tag1, ' and ', tag2])
+        title({'Error of bias-calibrated distance measurements',[' between tags ', tag1, ' and ', tag2]})
         
         % Mean error (should preferably be close to 0)
         ['Mean error between calibrated range measurements of tags ', tag1, ' and ', tag2, ': ',...
