@@ -72,11 +72,16 @@ while norm(delta) > tol && iter < 100
     costFuncHist = [costFuncHist; cost];
     
     % Compute step direction
-    if iter > 20
-        delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
+    if isempty(A)
+        warning('No calibration parameters have been selected.')
+        delta = 1e-16;
     else
-        delta = -(A.'*A) \( A.' * e);
-    end
+        if iter > 20
+            delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
+        else
+            delta = -(A.'*A) \( A.' * e);
+        end
+    end 
     
     % decompose and update
     if do_frame
