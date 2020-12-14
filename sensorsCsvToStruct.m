@@ -1,4 +1,4 @@
-function [data, t_0] = sensorsCsvToStruct(filename)
+function data = sensorsCsvToStruct(filename)
 %SENSORSCSVTOSTRUCT Extracts data from a CSV file, and returns a struct.
 %The x,y,z components of vector quantities are lumped into a [3 x N]
 %matrix, and all units are converted to SI units.
@@ -54,7 +54,6 @@ function [data, t_0] = sensorsCsvToStruct(filename)
         data_series.t = data_series.t - data_series.t_0;
         data.(['data',num2str(lv1)]) = data_series;
     end
-    t_0 = 0;
     fieldnames = fields(data);
     if numel(fieldnames) == 1
         data = data.(fieldnames{1});

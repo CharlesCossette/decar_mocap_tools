@@ -51,7 +51,6 @@ function [S, t0] = IMU_csv2struct(filename)
     S.t = data(:,index);
     t0  = S.t(1);
     S.t = S.t - t0; % Reset the time to start from 0
-    S.t_0 = t0;
     % ensure unit is seconds
     if contains(headers(headerRow,index),'(ns)') 
         S.t = S.t./10^9;        % ns to s
@@ -59,6 +58,7 @@ function [S, t0] = IMU_csv2struct(filename)
     elseif ~contains(headers(headerRow,index),'(s)')
         warning('Unrecognized time unit.')
     end
+    S.t_0 = t0;
 
     % Accelerometer
     indices = find(contains(headers(headerRow,:),'Accel'));
