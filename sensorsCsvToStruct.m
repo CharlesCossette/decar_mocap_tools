@@ -30,7 +30,7 @@ function [data, t_0] = sensorsCsvToStruct(filename)
         data_series = cleanupTemp(data_series, data_raw, header_series);
         data_series = cleanupEuler(data_series, data_raw, header_series);
         data_series = cleanupQuat(data_series, data_raw, header_series);
-        %data = cleanupUWB(data, data_raw, header_names);
+        %data_series = cleanupUWB(data, data_raw, header_names);
         fn = fields(data_series);
         data_series.t = data_series.(fn{1}); % I hate this. 
         data_series.t_0 = data_series.t(1);
@@ -126,7 +126,7 @@ function data = cleanup3dVector(data, data_raw, header_names, identifier)
 
     if numel(idx_x) > 1 || numel(idx_y) >  1 || numel(idx_z) >  1
         error(['DECAR_MOCAP_TOOLS: multiple ', identifier,' detected'])
-        % TODO. This will break if we have more than 1 3d vector
+        % TODO. This will break if we have more than 1 of the same 3d vector
         % measurement.
     elseif numel(idx_x) == 1 && numel(idx_y) ==  1 && numel(idx_z) ==  1 
 
@@ -164,7 +164,7 @@ function data = cleanup4dVector(data, data_raw, header_names, identifier)
 
     if numel(idx_x) > 1 || numel(idx_y) >  1 || numel(idx_z) >  1 || numel(idx_w) > 1
         error(['DECAR_MOCAP_TOOLS: multiple ', identifier,' detected'])
-        % TODO. This will break if we have more than 1 3d vector
+        % TODO. This will break if we have more than 1 of the same 4d vector
         % measurement.
     elseif numel(idx_x) == 1 && numel(idx_y) ==  1 && numel(idx_z) ==  1 && numel(idx_w) == 1
 

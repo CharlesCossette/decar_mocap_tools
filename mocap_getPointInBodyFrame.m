@@ -99,7 +99,7 @@ function r_pz_b = getAverageRelPos(data_mocap, rigid_body_name, marker_name)
 % of a given rigid body.
 
     r_pz_b = zeros(3,size(data_mocap.(rigid_body_name).t,1));
-    n_timepoints = max(size(data_mocap.(rigid_body_name).t,1),500);
+    n_timepoints = min(size(data_mocap.(rigid_body_name).t,1),500);
     for lv2 = 1:n_timepoints
         C_ba = data_mocap.(rigid_body_name).C_ba(:,:,lv2);
         r_zw_a = data_mocap.(rigid_body_name).r_zw_a(:,lv2);

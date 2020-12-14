@@ -17,6 +17,14 @@ if nargin < 3
     import_results = struct();
 end
 
+% SCALE UP RESULTS TO uT 
+is_si_units = false;
+if mean(vecnorm(data_synced.mag)) < 1e-2
+    % We will assume it was provided in Teslas instead of micro Teslas
+    % Convert to micro teslas for numirical stability of least squares
+    data_synced.mag = data_synced.mag*(1e6);
+    is_si_units = true;
+end
 
 [tol, do_frame, do_bias, do_scale, do_skew, do_mag_vector] = processOptions(options);
 [m_a, C_ms_mag, bias_mag, scale_mag, skew_mag] =  processImportResults(import_results);
@@ -127,7 +135,9 @@ end
 
 dataCalibrated = data_synced;
 dataCalibrated.mag = C_ms_mag*T_skew*diag(scale_mag)*(data_synced.mag + results.bias_mag);
-
+if is_si_units
+    dataCalibrated.mag = (1e-6)*dataCalibrated.mag;
+end
 %% Plotting to evaluate performance visually
 figure
 subplot(3,1,1)
