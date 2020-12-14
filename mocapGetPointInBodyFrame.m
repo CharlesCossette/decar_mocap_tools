@@ -43,7 +43,7 @@ function varargout = mocapGetPointInBodyFrame(data_mocap, rigid_body_names, mark
 
     % Extract from csv if filename was supplied.
     if isa(data_mocap,'char') || isa(data_mocap,'string')
-        data_mocap = mocap_csv2struct(data_mocap);
+        data_mocap = mocapCsvToStruct(data_mocap);
     elseif ~isa(data_mocap,'struct')
         error('First argument must either be a struct or a filename.')
     end
