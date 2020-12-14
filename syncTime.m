@@ -1,4 +1,4 @@
-function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, force_sync)
+function [dataSynced, offset] = syncTime(splineStruct, dataIMU, options)
 % Synchronizes the Mocap data represented as a spline and the IMU data,
 % based on a spike in acceleration readings.
 % The input should be for one rigid body and one IMU.
@@ -11,12 +11,29 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
         error('Missing data')
     end
     if nargin < 3
-        accThreshold = 12; 
-    end
-    if ~exist('force_sync','var')
-        force_sync = false;
+        options = struct();
     end
 
+    % Overwrite default if specified
+    if exist('options','var')
+        if isfield(options,'acc_threshold')
+            acc_threshold = options.acc_threshold;
+        else
+            acc_threshold = 12;
+        end
+        if isfield(options,'manual_offset')
+            manual_offset = options.manual_offset;
+        else
+            manual_offset = 0;
+        end
+        if isfield(options,'force_sync')
+            force_sync = options.force_sync;
+        else
+            force_sync = false;
+        end
+    end
+        
+    
     g_a = [0;0;-9.80665]; % gravity 
     
     t_mocap = splineStruct.breaks;
@@ -29,11 +46,11 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     %% Search for first time accel exceeds a threshold as an initial guess.
     % Finding the spike in the IMU data
     accNormIMU    = vecnorm(dataIMU.accel);
-    spikeIndexIMU = find(accNormIMU > accThreshold, 1, 'first');
-                                                   
+    spikeIndexIMU = find(accNormIMU > acc_threshold, 1, 'first');
+                                                       
     % Finding the spike in the Mocap data
     accNormMocap    = vecnorm(mocap_acc);
-    spikeIndexMocap = find(accNormMocap > accThreshold, 1, 'first');   
+    spikeIndexMocap = find(accNormMocap > acc_threshold, 1, 'first');   
     
     if isempty(spikeIndexIMU) || isempty(spikeIndexMocap)
         warning(['DECAR_MOCAP_TOOLS: Spike not detected in IMU or Mocap!',...
@@ -63,6 +80,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     imu_acc_synced = dataIMU.accel(:,~isOutsideMocap);
     imu_gyr_synced = dataIMU.gyro(:,~isOutsideMocap);
     imu_mag_synced = dataIMU.mag(:,~isOutsideMocap);
+    imu_pressure_synced = dataIMU.pressure(~isOutsideMocap);
 
     % Refine further using least-squares
     % TODO: make this step optional, as it takes a decent amount of time.
@@ -80,7 +98,11 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
         % Total offset such that t_synced = data_imu.t + offset;
         offset = offset + dt; 
     end
-    
+
+    % Manual offset if specified by user
+    t_synced = t_synced + manual_offset;
+    offset = offset + manual_offset;
+
     [mocap_acc_synced, mocap_omega_synced, dataSynced] = ...
                               getFakeImuMocap(splineStruct, t_synced, g_a);
     
@@ -115,6 +137,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, accThreshold, fo
     dataSynced.mag = imu_mag_synced;
     dataSynced.accel_mocap = mocap_acc_synced;
     dataSynced.gyro_mocap = mocap_omega_synced;
+    dataSynced.pressure = imu_pressure_synced;
     dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, splineStruct.gapIntervals);
     dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, splineStruct.staticIntervals);
 end
