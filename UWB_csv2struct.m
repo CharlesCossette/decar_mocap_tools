@@ -9,10 +9,11 @@ function S = UWB_csv2struct(filename, t0)
 % filename: [string]
 %       filename of Range raw csv, must be on the matlab path.
 % t0: [double]
+%       Time to subtract from all the timestamps.
 %       the value used to subtract the timestamps of the IMU data collected
 %       on the same device as the range measurements. This allows
 %       synchronization between the UWB data and the IMU data. 
-
+%
 % Outputs:
 % --------
 %   S: [struct] with fields

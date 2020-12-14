@@ -26,45 +26,47 @@ function [err, error_attitude] = ...
     error_attitude = nan(3,length(dataSynced.t));
     error_omega = nan(3,length(dataSynced.t));
     for lv1 = start_index:interval_size:end_index 
-        if (lv1 + batch_size) > end_index
-            N = end_index - lv1 + 1;
-        else
-            N = batch_size;
+        if ~is_gap(lv1)
+            if (lv1 + batch_size) > end_index
+                N = end_index - lv1 + 1;
+            else
+                N = batch_size;
+            end
+            idx = lv1:lv1 + N -1;
+            idx = idx(:);
+            isStaticInBatch = idx(:).*is_static(idx);
+            isStaticInBatch = isStaticInBatch(isStaticInBatch ~= 0);
+
+            % Initial conditions from mocap (if we detected static, force zero
+            % velocity).
+            C_ba_0 = dataSynced.C_ba(:,:,lv1);
+            t_span = dataSynced.t(idx);
+
+            % Initialize
+            N = length(t_span);
+            C_ba_dr = zeros(3,3,N);
+            C_ba_dr(:,:,1) = C_ba_0;
+
+            % Dead reckoning        
+            for lv2 = 1:N-1
+                dt = t_span(lv2+1) - t_span(lv2);
+                % Use zero-order hold. TODO CHECK THIS IS NOT GETTING MESSED UP
+                measurement_index = find(data_corrected.t <= t_span(lv2), 1, 'last');    
+                omega_ba_b = data_corrected.gyro(:,measurement_index);
+                C_ba_dr(:,:,lv2+1) = ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_dr(:,:,lv2);
+            end
+
+            % Normalize to avoid some numerical errors.
+            %C_ba_dr = quatToDcm(dcmToQuat(C_ba_dr));
+
+            % Build errors. If static, force zero ang. velocity as the reference. 
+            error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
+
+            error_omega(:,isStaticInBatch) = - data_corrected.gyro(:,isStaticInBatch);
+
+            error_attitude(:,idx) = DCM_TO_ROTVEC(matmul3d(C_ba_dr,...
+                                                  trans3d(dataSynced.C_ba(:,:,idx))));
         end
-        idx = lv1:lv1 + N -1;
-        idx = idx(:);
-        isStaticInBatch = idx(:).*is_static(idx);
-        isStaticInBatch = isStaticInBatch(isStaticInBatch ~= 0);
-        
-        % Initial conditions from mocap (if we detected static, force zero
-        % velocity).
-        C_ba_0 = dataSynced.C_ba(:,:,lv1);
-        t_span = dataSynced.t(idx);
-        
-        % Initialize
-        N = length(t_span);
-        C_ba_dr = zeros(3,3,N);
-        C_ba_dr(:,:,1) = C_ba_0;
-        
-        % Dead reckoning        
-        for lv2 = 1:N-1
-            dt = t_span(lv2+1) - t_span(lv2);
-            % Use zero-order hold. TODO CHECK THIS IS NOT GETTING MESSED UP
-            measurement_index = find(data_corrected.t <= t_span(lv2), 1, 'last');    
-            omega_ba_b = data_corrected.gyro(:,measurement_index);
-            C_ba_dr(:,:,lv2+1) = ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_dr(:,:,lv2);
-        end
-        
-        % Normalize to avoid some numerical errors.
-        %C_ba_dr = quatToDcm(dcmToQuat(C_ba_dr));
-        
-        % Build errors. If static, force zero ang. velocity as the reference. 
-        error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
-                                   
-        error_omega(:,isStaticInBatch) = - data_corrected.gyro(:,isStaticInBatch);
-                                
-        error_attitude(:,idx) = DCM_TO_ROTVEC(matmul3d(C_ba_dr,...
-                                              trans3d(dataSynced.C_ba(:,:,idx))));
     end
     
     % Add weight when static. 
