@@ -11,17 +11,13 @@ addpath('calibrationData/')
                                           {'Unlabeled1354', 'Unlabeled1355'});
 
 %% Extract Mocap data
-dataMocap = mocapCsvToStruct('Sensor_Frame_Calibration_Take_002.csv')
+data_mocap = mocapCsvToStruct('Sensor_Frame_Calibration_Take_002.csv')
 
 %% Align the reference point and the IMU
-% TODO: 1) include in mocap_csv2struct?
-for lv1=1:1:length(dataMocap.RigidBody002.t)
-    dataMocap.RigidBody002.r_zw_a(:,lv1) = dataMocap.RigidBody002.r_zw_a(:,lv1) + ...
-                                           dataMocap.RigidBody002.C_ba(:,:,lv1)'*r_imu2z_b;
-end
+data_mocap_shifted = mocapSetNewPivotPoint(data_mocap,'RigidBody002',r_imu2z_b);
 
 %% Fit a b-spline to the Mocap data
-spline_mocap = mocapFitSpline(dataMocap,[],true)
+spline_mocap = mocapFitSpline(data_mocap_shifted,[],true)
 
 %% Extract the IMU data
 data_imu = sensorsCsvToStruct('2020_07_15_trial2_mmagent1_imu_sensorframe_calibration.csv')
