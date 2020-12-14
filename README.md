@@ -1,4 +1,5 @@
 # DECAR Mocap Tools #
+* This repo is definitely a work in progress, and will be cleaned up after the ICRA deadline*
 [TOC]
 ## Setup 
 ### Option 1 - Simple Cloning
