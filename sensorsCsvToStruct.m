@@ -10,6 +10,15 @@ function [data, t_0] = sensorsCsvToStruct(filename)
     % Find indices of columns containing "timestamp".
     idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
     
+    if numel(idx_time) == 0
+        % Then header row was not properly detected.
+        % we will try the first row instead
+        opts = detectImportOptions(filename,'VariableNamesLine',1,'PreserveVariableNames',true);
+        T = readtable(filename,opts);
+        header_names = T.Properties.VariableNames;   
+        idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
+    end
+    
     % If there are multiple timestamp columns, we interpret this as
     % multiple parallel data series concatenated side-by-side.
     if numel(idx_time) > 1
