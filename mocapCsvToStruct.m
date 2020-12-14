@@ -1,4 +1,4 @@
-function  S = mocap_csv2struct(filename)
+function  S = mocapCsvToStruct(filename)
 %MOCAP_CSV2STRUCT Extracts the relevant information from the raw Optitrack
 %csv file and stores it into a struct. Also removes any markers with a
 %visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
@@ -167,6 +167,7 @@ for lv1 = 1:numel(IDs)
                     q_bprimeb = [-0.5;0.5;0.5;0.5];
                     S.(name).q_ba = quatMult(q_bprimeb,S.(name).q_ba);
                     S.(name).C_ba = quatToDcm(S.(name).q_ba);
+                    S.(name).q_ba = dcmToQuat(S.(name).q_ba);
 
                     % Repeat the test again, make sure the problem is fixed.
                     for lv2 = 1:size(r_up_b,2)

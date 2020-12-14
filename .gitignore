@@ -4,3 +4,6 @@ __pycache__/
 # MATLAB
 *.asv
 *.m~
+
+# Temporary dev folder
+dev/

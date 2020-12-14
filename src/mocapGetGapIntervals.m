@@ -2,7 +2,7 @@ function intervals = mocapGetGapIntervals(object)
 % TODO: 1) decide whether it's worth having these as inputs to the function
 thresDiff = 1; % the maximum gap in seconds in which two sets of missing
 % data are considered to belong to the same time range
-bufferSize = 1; % the size of the gap before and after missing data to be
+bufferSize = 0.25; % the size of the gap before and after missing data to be
 % considered as missing data as well. Defined in seconds.
 
 t      = object.t.';
