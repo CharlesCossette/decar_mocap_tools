@@ -128,7 +128,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     % TODO: make this step optional, as it takes a decent amount of time.
     % TODO: add scaling factor? t_synced_refined = scale*(t_synced + dt);
     if ~force_sync
-        f = @(dt) error(dt, t_synced, spline_struct, imu_acc_synced, imu_gyr_synced);
+        f = @(dt) errorSyncTime(dt, t_synced, spline_struct, imu_acc_synced, imu_gyr_synced);
         options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt',...
                                'display','iter-detailed','steptolerance',1e-8,...
                                'InitDamping',0);
@@ -179,7 +179,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     data_synced.staticIndices = getIndicesFromIntervals(data_synced.t, spline_struct.staticIntervals);
 end
 
-function output = error(dt, t_synced, splineStruct, imu_accel, imu_gyro)
+function output = errorSyncTime(dt, t_synced, splineStruct, imu_accel, imu_gyro)
     idx = 1:5:numel(t_synced); % Downsample for speed.
     g_a = [0;0;-9.80665];
     [mocap_acc, mocap_gyro, ~] = getFakeImuMocap(splineStruct, t_synced(idx) + dt, g_a);
