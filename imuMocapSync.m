@@ -1,5 +1,5 @@
-function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, accel_threshold, varargin)
-%IMUMOCAPSYNC Synchronizes the Mocap data and the IMU data.
+function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
+% Synchronizes the Mocap data represented as a spline and the IMU data.
 % Detects first motion in both the mocap and IMU data, and uses this as an
 % initial guess for a least-squares refinement procedure. The initial guess
 % can be specified using other methods. The input should be for one rigid body 
@@ -50,7 +50,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, accel_thr
     % Default options for optional arguments
     default_force_sync = false;
     default_manual_offset = false;
-    default_accel_threshold = false;
+    default_accel_threshold = 12;
     
     % Parse input for name-value pairs
     p = inputParser;
@@ -61,7 +61,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, accel_thr
     addParameter(p,'manual_offset', default_manual_offset);
     
     % Load input into variables.
-    parse(p, spline_struct, data_imu, accel_threshold, varargin{:})
+    parse(p, spline_struct, data_imu, varargin{:})
     spline_struct = p.Results.spline_struct;
     data_imu = p.Results.data_imu;
     accel_threshold = p.Results.accel_threshold;
