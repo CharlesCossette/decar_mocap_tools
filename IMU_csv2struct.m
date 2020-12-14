@@ -93,10 +93,10 @@ function [S, t0] = IMU_csv2struct(filename)
     % Barometer
     % TODO: 1) deal with mBar too..
     index = find(contains(headers(headerRow,:),'Pressure'));
-    S.bar = data(:,index);
+    S.pressure = data(:,index);
     % ensure barometer reading is in Pa
     if contains(headers(headerRow,index),'(mBar)') || contains(headers(headerRow,index),'(mbar)')
-        S.bar = S.bar * 100; % mBar to Pa
+        S.pressure = S.pressure * 100; % mBar to Pa
     elseif ~contains(headers(headerRow,index),'(Pa)')
         warning('Unrecognized barometer unit.')
     end

@@ -80,7 +80,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, options)
     imu_acc_synced = dataIMU.accel(:,~isOutsideMocap);
     imu_gyr_synced = dataIMU.gyro(:,~isOutsideMocap);
     imu_mag_synced = dataIMU.mag(:,~isOutsideMocap);
-    imu_bar_synced = dataIMU.bar(~isOutsideMocap);
+    imu_pressure_synced = dataIMU.pressure(~isOutsideMocap);
 
     % Refine further using least-squares
     % TODO: make this step optional, as it takes a decent amount of time.
@@ -137,7 +137,7 @@ function [dataSynced, offset] = syncTime(splineStruct, dataIMU, options)
     dataSynced.mag = imu_mag_synced;
     dataSynced.accel_mocap = mocap_acc_synced;
     dataSynced.gyro_mocap = mocap_omega_synced;
-    dataSynced.bar = imu_bar_synced;
+    dataSynced.pressure = imu_pressure_synced;
     dataSynced.gapIndices = getIndicesFromIntervals(dataSynced.t, splineStruct.gapIntervals);
     dataSynced.staticIndices = getIndicesFromIntervals(dataSynced.t, splineStruct.staticIntervals);
 end
