@@ -1,4 +1,4 @@
-function intervals = mocapGetStaticIntervals(object,windowSize,stdDevThreshold)
+function intervals = mocapGetStaticIntervals(object, windowSize, stdDevThreshold)
 
 t      = object.t';
 freq = 1/((t(end) - t(1))/numel(t));
