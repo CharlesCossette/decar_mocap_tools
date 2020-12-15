@@ -1,4 +1,4 @@
-function data_mocap = mocapSetNewPivotPoint(data_mocap, rigid_body_name, pos_shift)
+function data_mocap = mocapSetNewPivotPoint(data_mocap, pos_shift, rigid_body_name)
 %MOCAPSETNEWPIVOTPOINT Modifies the position data inside a data_mocap
 %struct to be the position of a new "origin", "pivot point", or, as our
 %group calls it, "point z". i.e. a reference point on the body.
@@ -18,10 +18,22 @@ function data_mocap = mocapSetNewPivotPoint(data_mocap, rigid_body_name, pos_shi
 % data_mocap: struct
 %       Supplied mocap data but with the modification.
 
-for lv1=1:1:length(data_mocap.(rigid_body_name).t)
-    data_mocap.(rigid_body_name).r_zw_a(:,lv1) ...
-        = data_mocap.(rigid_body_name).r_zw_a(:,lv1)...
-            + data_mocap.(rigid_body_name).C_ba(:,:,lv1)'*pos_shift;
-end
+    if nargin < 2
+        error('Missing data')
+    end
+    
+    if exist('rigid_body_name','var')
+        for lv1=1:1:length(data_mocap.(rigid_body_name).t)
+            data_mocap.(rigid_body_name).r_zw_a(:,lv1) ...
+                = data_mocap.(rigid_body_name).r_zw_a(:,lv1)...
+                    + data_mocap.(rigid_body_name).C_ba(:,:,lv1)'*pos_shift;
+        end
+    else
+        for lv1=1:1:length(data_mocap.t)
+            data_mocap.r_zw_a(:,lv1) ...
+                = data_mocap.r_zw_a(:,lv1)...
+                    + data_mocap.C_ba(:,:,lv1)'*pos_shift;
+        end
+    end
 
 end
