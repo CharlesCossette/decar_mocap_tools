@@ -122,7 +122,7 @@ if params.end_index > length(data_synced.t)
     params.end_index = length(data_synced.t);
 end
 
-[r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
+[r_iz_b, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
                                            processImportResults(import_results);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                       
@@ -131,7 +131,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % compute error vector once
-[~, e_pos, e_vel, e_att] = imuDeadReckoningError(r_iz, C_ma, C_mg, bias_a,...
+[~, e_pos, e_vel, e_att] = imuDeadReckoningError(r_iz_b, C_ma, C_mg, bias_a,...
                                                  bias_g, scale_a, scale_g, ...
                                                  skew_a, skew_g, C_ae,...
                                                  data_synced, params);
@@ -308,7 +308,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, ~] = imuAccelDeadReckoningError(r_iz, C_ma, bias_a,...
+    [e, e_pos, e_vel, ~] = imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a,...
                                                       scale_a, skew_a,...
                                                       C_ae, data_synced, params);
     
@@ -338,7 +338,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
                                                  skew_a, C_ae, data_synced,...
                                                  params);
                                        
-        A_pivot = complexStepJacobian(f_r_iz,r_iz);
+        A_pivot = complexStepJacobian(f_r_iz, r_iz_b);
 
         A = [A, A_pivot];
         pivot_indices = indx_counter:indx_counter + 2;
@@ -346,7 +346,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_frame_accel
-        f_Cma = @(C) imuAccelDeadReckoningError(r_iz, C, bias_a, scale_a,...
+        f_Cma = @(C) imuAccelDeadReckoningError(r_iz_b, C, bias_a, scale_a,...
                                                 skew_a, C_ae, data_synced,...
                                                 params);
                                        
@@ -359,7 +359,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_bias_accel
-        f_bias = @(b) imuAccelDeadReckoningError(r_iz, C_ma, b, scale_a,...
+        f_bias = @(b) imuAccelDeadReckoningError(r_iz_b, C_ma, b, scale_a,...
                                                  skew_a, C_ae, data_synced,...
                                                  params);
         A_bias = complexStepJacobian(f_bias, bias_a);
@@ -369,7 +369,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_scale_accel
-        f_scale = @(s) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, s,...
+        f_scale = @(s) imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a, s,...
                                                   skew_a, C_ae, data_synced,...
                                                   params);
                                        
@@ -380,7 +380,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_skew_accel
-        f_skew = @(s) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a,...
+        f_skew = @(s) imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a, scale_a,...
                                                  s, C_ae, data_synced, params);
         A_skew = complexStepJacobian(f_skew, skew_a);
         A = [A, A_skew];
@@ -389,7 +389,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_grav
-        f_C_ae = @(C) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a,...
+        f_C_ae = @(C) imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a, scale_a,...
                                                  skew_a, C, data_synced, params);
         f_phi_ae = @(phi) f_C_ae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phi_ae = complexStepJacobian(f_phi_ae,[0;0]);
@@ -412,7 +412,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     % decompose and update
     if do_imu_position
         del_pivot = delta(pivot_indices(1:3));
-        r_iz = r_iz + del_pivot;
+        r_iz_b = r_iz_b + del_pivot;
     end
     
     if do_frame_accel
@@ -445,7 +445,7 @@ end
 
 disp('Accelerometer/Gravity Calibration Complete')
 % compute error vector
-[~, e_pos, e_vel] = imuAccelDeadReckoningError(r_iz, C_ma, bias_a,...
+[~, e_pos, e_vel] = imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a,...
                                                     scale_a, skew_a,...
                                                     C_ae, data_synced, params);
 RMSE = sqrt((e_pos(:).'*e_pos(:))./length(data_synced.t));
@@ -455,7 +455,7 @@ disp(['Velocity Estimate RMSE After Calibration (m/s): ' , num2str(RMSE)])
 
 %% Results and Output
 g_e = [0;0;-9.80665];
-results.r_iz = r_iz;
+results.r_iz_b = r_iz_b;
 results.C_ms_accel = C_ma;
 results.C_ms_gyro = C_mg;
 results.bias_accel = bias_a;
@@ -466,7 +466,7 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
-data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
+data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
 data_calibrated = imuCorrectMeasurements(data_pivoted, results);
 
 % Calibrated ground truth accel/gyro measurements.
@@ -663,13 +663,13 @@ end
 
 end
 %% IMPORT RESULTS PROCESSING
-function [r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, ...
+function [r_iz_b, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, ...
           skew_g, C_ae] = processImportResults(import_results)
 
 if isfield(import_results,'r_iz')
-    r_iz = import_results.r_iz;
+    r_iz_b = import_results.r_iz;
 else
-    r_iz = [0;0;0];
+    r_iz_b = [0;0;0];
 end
 if isfield(import_results,'C_ms_accel')
     C_ma = import_results.C_ms_accel;

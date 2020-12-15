@@ -1,5 +1,5 @@
 function [err, error_position, error_velocity, error_accel] = ...
-    imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a, skew_a, C_ae,...
+    imuAccelDeadReckoningError(r_iz_b, C_ma, bias_a, scale_a, skew_a, C_ae,...
                                data_synced, params) 
 % ERRORDEADRECKONING Corrects the IMU with the provided calibration
 % parameters, then integrates the data forward on specific intervals.
@@ -22,7 +22,7 @@ function [err, error_position, error_velocity, error_accel] = ...
     data_corrected.accel = C_ma*T_skew_a*diag(scale_a)*(data_synced.accel + bias_a);
     
     % Set new pivot point for the mocap data.
-    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
+    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
     
     % Corrected gravity in the mocap world frame.
     g_e = [0;0;-9.80665];

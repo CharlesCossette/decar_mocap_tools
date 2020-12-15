@@ -1,6 +1,6 @@
 function [err, error_position, error_velocity, error_attitude] = ...
     imuDeadReckoningError(...
-    r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae,...
+    r_iz_b, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae,...
     data_synced, params ...
     )
 % ERRORDEADRECKONING Corrects the IMU with the provided calibration
@@ -28,7 +28,7 @@ calib_params.skew_gyro = skew_g;
 data_corrected = imuCorrectMeasurements(data_synced, calib_params);
 
 % Set new pivot point for the mocap data.
-data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
+data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
 
 % Corrected gravity in the mocap world frame.
 g_e = [0;0;-9.80665];
