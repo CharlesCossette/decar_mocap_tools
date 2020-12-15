@@ -466,20 +466,22 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
-data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
+data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b,...
+                                     'fit_spline_bool', true,...
+                                     'g_a',results.g_a);
 data_calibrated = imuCorrectMeasurements(data_pivoted, results);
 
-% Calibrated ground truth accel/gyro measurements.
-g_a = results.g_a;
-mocap_gyro = data_synced.gyro_mocap;
-mocap_accel = zeros(3, length(data_synced.t));
-for lv1 = 1:length(data_synced.t)
-    mocap_accel(:,lv1) = data_synced.accel_mocap(:,lv1) - data_synced.C_ba(:,:,lv1)*(g_a - g_e);
-end
+% % Calibrated ground truth accel/gyro measurements.
+% g_a = results.g_a;
+% mocap_gyro = data_synced.gyro_mocap;
+% mocap_accel = zeros(3, length(data_synced.t));
+% for lv1 = 1:length(data_synced.t)
+%     mocap_accel(:,lv1) = data_synced.accel_mocap(:,lv1) - data_synced.C_ba(:,:,lv1)*(g_a - g_e);
+% end
 
-data_calibrated.t = data_synced.t;
-data_calibrated.accel_mocap = mocap_accel;
-data_calibrated.gyro_mocap = mocap_gyro;
+% data_calibrated.t = data_synced.t;
+% data_calibrated.accel_mocap = mocap_accel;
+% data_calibrated.gyro_mocap = mocap_gyro;
 
 %% Plotting to evaluate performance visually
 % Plot calibrated data - accelerometers

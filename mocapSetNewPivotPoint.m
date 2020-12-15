@@ -1,4 +1,4 @@
-function data_mocap = mocapSetNewPivotPoint(data_mocap, pos_shift, rigid_body_name)
+function data_pivot = mocapSetNewPivotPoint(data_mocap, pos_shift, varargin)
 %MOCAPSETNEWPIVOTPOINT Modifies the position data inside a data_mocap
 %struct to be the position of a new "origin", "pivot point", or, as our
 %group calls it, "point z". i.e. a reference point on the body.
@@ -22,18 +22,68 @@ function data_mocap = mocapSetNewPivotPoint(data_mocap, pos_shift, rigid_body_na
         error('Missing data')
     end
     
-    if exist('rigid_body_name','var')
-        for lv1=1:1:length(data_mocap.(rigid_body_name).t)
-            data_mocap.(rigid_body_name).r_zw_a(:,lv1) ...
-                = data_mocap.(rigid_body_name).r_zw_a(:,lv1)...
-                    + data_mocap.(rigid_body_name).C_ba(:,:,lv1)'*pos_shift;
+    % Default options for optional arguments
+    default_rigid_body_name = 'None';
+    default_fit_spline_bool = false;
+    default_gap_size = 1;
+    default_g_a = [0;0;-9.80665];
+    
+    % Parse input for name-value pairs
+    p = inputParser;
+    addRequired(p,'data_mocap');
+    addRequired(p,'pos_shift');
+    addParameter(p,'rigid_body_name',default_rigid_body_name);
+    addParameter(p,'fit_spline_bool', default_fit_spline_bool);
+    addParameter(p,'gap_size', default_gap_size);
+    addParameter(p,'g_a', default_g_a);
+    
+    % Load input into variables.
+    parse(p, data_mocap, pos_shift, varargin{:})
+    data_mocap = p.Results.data_mocap;
+    pos_shift = p.Results.pos_shift;
+    rigid_body_name = p.Results.rigid_body_name;
+    fit_spline_bool = p.Results.fit_spline_bool;
+    gap_size = p.Results.gap_size;
+    g_a = p.Results.g_a;
+    
+    
+    if strcmp(rigid_body_name,'None')
+        data_rigid_body = data_mocap;
+    else
+        data_rigid_body = data_mocap.(rigid_body_name);
+    end
+    
+    for lv1=1:1:length(data_mocap.t)
+        data_rigid_body.r_zw_a(:,lv1) ...
+                = data_rigid_body.r_zw_a(:,lv1)...
+                    + data_rigid_body.C_ba(:,:,lv1)'*pos_shift;
+    end
+       
+    if fit_spline_bool
+        data_rigid_body.type = 'Rigid Body';
+        data_rigid_body.gapIntervals = mocapGetGapIntervals(data_rigid_body);
+        mocap_spline = mocapGetSplineProperties(data_rigid_body, gap_size);
+        [mocap_accel, mocap_gyro, mocap_corrected]...
+                = getFakeImuMocap(mocap_spline,data_rigid_body.t,g_a);
+    end
+    
+    data_pivot = data_mocap;
+    if strcmp(rigid_body_name,'None')
+        data_pivot.r_zw_a = data_rigid_body.r_zw_a;
+        if fit_spline_bool
+            data_pivot.v_zwa_a = mocap_corrected.v_zwa_a;
+            data_pivot.a_zwa_a = mocap_corrected.a_zwa_a;
+            data_pivot.accel_mocap = mocap_accel;
+            data_pivot.gyro_mocap = mocap_gyro;
         end
     else
-        for lv1=1:1:length(data_mocap.t)
-            data_mocap.r_zw_a(:,lv1) ...
-                = data_mocap.r_zw_a(:,lv1)...
-                    + data_mocap.C_ba(:,:,lv1)'*pos_shift;
+        data_pivot.(rigid_body_name).r_zw_a = data_rigid_body.r_zw_a;
+        if fit_spline_bool
+            data_pivot.(rigid_body_name).v_zwa_a = mocap_corrected.v_zwa_a;
+            data_pivot.(rigid_body_name).a_zwa_a = mocap_corrected.a_zwa_a;
+            data_pivot.(rigid_body_name).accel_mocap = mocap_accel;
+            data_pivot.(rigid_body_name).gyro_mocap = mocap_gyro;
         end
     end
-
+    
 end

@@ -27,17 +27,9 @@ function [err, error_position, error_velocity, error_accel] = ...
     
     % Set new pivot point for the mocap data only if r_iz_b is not the zero vector.
     if any(r_iz_b)
-        gap_size = 1;
-        data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
-        data_pivoted.gapIntervals...
-            = getIntervalsFromIndices(data_pivoted.t, data_pivoted.gapIndices, 1, 0.25);
-        mocap_spline = mocapGetSplineProperties(data_pivoted, gap_size);
-        [mocap_accel, mocap_gyro, mocap_corrected]...
-                = getFakeImuMocap(mocap_spline,data_pivoted.t,g_a);
-        data_pivoted.v_zwa_a = mocap_corrected.v_zwa_a;
-        data_pivoted.a_zwa_a = mocap_corrected.a_zwa_a;
-        data_pivoted.accel_mocap = mocap_accel;
-        data_pivoted.gyro_mocap = mocap_gyro;
+        data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b,...
+                                             'fit_spline_bool', true,...
+                                             'g_a', g_a);
     else
         data_pivoted = data_synced;
     end
