@@ -23,33 +23,16 @@ for lv1=1:1:numel(rigid_bodies)
     % ensure it is actually a rigid body and not a marker
     if strcmp(data_mocap.(body_name{1}).type, 'Rigid Body')
         
-        t = data_mocap.(body_name{1}).t(:);
-        waypoints = [data_mocap.(body_name{1}).r_zw_a;
-            data_mocap.(body_name{1}).q_ba];
-        
-        % remove waypoints with missing data
-        gap_indices = getIndicesFromIntervals(t,data_mocap.(body_name{1}).gapIntervals);
-        t = t(~gap_indices);
-        waypoints = waypoints(:, ~gap_indices);
-      
-        % reduce the number of points to speed up the process of fitting a B-spline.
-        t         = t(:,1:gap_size:end);
-        waypoints = waypoints(:,1:gap_size:end);
-
-        % Generate the defining properties of the B-spline.
-        % Assume initial and final velocity, angular velocity are 0
-        %pp = spline(t,waypoints);
-        pp = csaps(t,waypoints,0.999999);
-        %pp = fn2fm(spaps(t,waypoints,0.00001,[],2),'pp')
-        
         % Saving the computed B-spline fit.
-        spline_mocap.(body_name{1}) = pp;
+        spline_mocap.(body_name{1})...
+            = mocapGetSplineProperties(data_mocap.(body_name{1}), gap_size);
         spline_mocap.(body_name{1}).gapIntervals = data_mocap.(body_name{1}).gapIntervals;
         spline_mocap.(body_name{1}).staticIntervals = data_mocap.(body_name{1}).staticIntervals;
+        
         % Evaluating the performance of the fit, visually
         % user-defined trigger
         if visual_bool
-            plotScript(data_mocap,t,spline_mocap,body_name)
+            plotScript(data_mocap,spline_mocap,body_name)
         end
         
     end
@@ -58,7 +41,9 @@ end
 
 end
 
-function plotScript(data, t, spline_mocap, body_name)
+function plotScript(data, spline_mocap, body_name)
+
+t = spline_mocap.(body_name{1}).breaks';
 
 spline_points = ppval(spline_mocap.(body_name{1}),t);
 staticIndices = getIndicesFromIntervals(t, data.(body_name{1}).staticIntervals);
