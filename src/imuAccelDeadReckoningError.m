@@ -21,13 +21,23 @@ function [err, error_position, error_velocity, error_accel] = ...
     T_skew_a(2,3) = -skew_a(1);
     data_corrected.accel = C_ma*T_skew_a*diag(scale_a)*(data_synced.accel + bias_a);
     
-    % Set new pivot point for the mocap data.
-    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
-    
     % Corrected gravity in the mocap world frame.
     g_e = [0;0;-9.80665];
     g_a = C_ae*g_e;
     
+    % Set new pivot point for the mocap data.
+    gap_size = 1;
+    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
+    data_pivoted.gapIntervals...
+        = getIntervalsFromIndices(data_pivoted.t, data_pivoted.gapIndices, 1, 0.25);
+    mocap_spline = mocapGetSplineProperties(data_pivoted, gap_size);
+    [mocap_accel, mocap_gyro, mocap_corrected]...
+            = getFakeImuMocap(mocap_spline,data_pivoted.t,g_a);
+    data_pivoted.v_zwa_a = mocap_corrected.v_zwa_a;
+    data_pivoted.a_zwa_a = mocap_corrected.a_zwa_a;
+    data_pivoted.accel_mocap = mocap_accel;
+    data_pivoted.gyro_mocap = mocap_gyro;
+        
     % Go through each interval and dead-reckon for a small duration of
     % length batch_size. Compare results to ground truth.
     error_position = nan(3,length(data_pivoted.t));
