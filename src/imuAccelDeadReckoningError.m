@@ -25,18 +25,22 @@ function [err, error_position, error_velocity, error_accel] = ...
     g_e = [0;0;-9.80665];
     g_a = C_ae*g_e;
     
-    % Set new pivot point for the mocap data.
-    gap_size = 1;
-    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
-    data_pivoted.gapIntervals...
-        = getIntervalsFromIndices(data_pivoted.t, data_pivoted.gapIndices, 1, 0.25);
-    mocap_spline = mocapGetSplineProperties(data_pivoted, gap_size);
-    [mocap_accel, mocap_gyro, mocap_corrected]...
-            = getFakeImuMocap(mocap_spline,data_pivoted.t,g_a);
-    data_pivoted.v_zwa_a = mocap_corrected.v_zwa_a;
-    data_pivoted.a_zwa_a = mocap_corrected.a_zwa_a;
-    data_pivoted.accel_mocap = mocap_accel;
-    data_pivoted.gyro_mocap = mocap_gyro;
+    % Set new pivot point for the mocap data only if r_iz_b is not the zero vector.
+    if any(r_iz_b)
+        gap_size = 1;
+        data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
+        data_pivoted.gapIntervals...
+            = getIntervalsFromIndices(data_pivoted.t, data_pivoted.gapIndices, 1, 0.25);
+        mocap_spline = mocapGetSplineProperties(data_pivoted, gap_size);
+        [mocap_accel, mocap_gyro, mocap_corrected]...
+                = getFakeImuMocap(mocap_spline,data_pivoted.t,g_a);
+        data_pivoted.v_zwa_a = mocap_corrected.v_zwa_a;
+        data_pivoted.a_zwa_a = mocap_corrected.a_zwa_a;
+        data_pivoted.accel_mocap = mocap_accel;
+        data_pivoted.gyro_mocap = mocap_gyro;
+    else
+        data_pivoted = data_synced;
+    end
         
     % Go through each interval and dead-reckon for a small duration of
     % length batch_size. Compare results to ground truth.
