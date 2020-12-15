@@ -1,15 +1,15 @@
 function [err, error_position, error_velocity, error_attitude] = ...
     imuDeadReckoningError(...
-    C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae,...
-    dataSynced, params ...
+    r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae,...
+    data_synced, params ...
     )
 % ERRORDEADRECKONING Corrects the IMU with the provided calibration
 % parameters, then integrates the data forward on specific intervals.
 % Returns the error between the integrated solution and the ground truth.
 
 % Extract some relevant information and parameters.
-is_gap = dataSynced.gapIndices(:);
-is_static = dataSynced.staticIndices(:);
+is_gap = data_synced.gapIndices(:);
+is_static = data_synced.staticIndices(:);
 interval_size = params.interval_size;
 batch_size = params.batch_size;
 start_index = params.start_index;
@@ -24,7 +24,11 @@ calib_params.scale_gyro = scale_g;
 calib_params.skew_accel = skew_a;
 calib_params.skew_gyro = skew_g;
 
-data_corrected = imuCorrectMeasurements(dataSynced, calib_params);
+% Calibrated measurements
+data_corrected = imuCorrectMeasurements(data_synced, calib_params);
+
+% Set new pivot point for the mocap data.
+data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
 
 % Corrected gravity in the mocap world frame.
 g_e = [0;0;-9.80665];
@@ -32,11 +36,11 @@ g_a = C_ae*g_e;
 
 % Go through each interval and dead-reckon for a small duration of
 % length batch_size. Compare results to ground truth.
-error_position = nan(3,length(dataSynced.t));
-error_velocity = nan(3,length(dataSynced.t));
-error_attitude = nan(3,length(dataSynced.t));
-error_accel = nan(3,length(dataSynced.t));
-error_omega = nan(3,length(dataSynced.t));
+error_position = nan(3,length(data_pivoted.t));
+error_velocity = nan(3,length(data_pivoted.t));
+error_attitude = nan(3,length(data_pivoted.t));
+error_accel = nan(3,length(data_pivoted.t));
+error_omega = nan(3,length(data_pivoted.t));
 for lv1 = start_index:interval_size:end_index
     if (lv1 + batch_size) > end_index
         N = end_index - lv1 + 1;
@@ -50,22 +54,22 @@ for lv1 = start_index:interval_size:end_index
     
     % Initial conditions from mocap (if we detected static, force zero
     % velocity).
-    r_zw_a_0 = dataSynced.r_zw_a(:,lv1);
+    r_zw_a_0 = data_pivoted.r_zw_a(:,lv1);
     if is_static(lv1)
         v_zwa_a_0 = zeros(3,1);
     else
-        v_zwa_a_0 = dataSynced.v_zwa_a(:,lv1);
+        v_zwa_a_0 = data_pivoted.v_zwa_a(:,lv1);
     end
-    C_ba_0 = dataSynced.C_ba(:,:,lv1);
-    t_span = dataSynced.t(idx);
+    C_ba_0 = data_pivoted.C_ba(:,:,lv1);
+    t_span = data_pivoted.t(idx);
     traj_dr = imuDeadReckoning(data_corrected, r_zw_a_0, v_zwa_a_0, C_ba_0,...
         g_a, 'so3',t_span);
     
     % Build errors. If static, force zero velocity as the reference.
-    error_position(:,idx) = dataSynced.r_zw_a(:,idx) - traj_dr.r_zw_a;
-    error_velocity(:,idx) = dataSynced.v_zwa_a(:,idx) - traj_dr.v_zwa_a;
-    error_accel(:,idx) = dataSynced.a_zwa_a(:,idx) - traj_dr.a_zwa_a;
-    error_omega(:,idx) = dataSynced.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
+    error_position(:,idx) = data_pivoted.r_zw_a(:,idx) - traj_dr.r_zw_a;
+    error_velocity(:,idx) = data_pivoted.v_zwa_a(:,idx) - traj_dr.v_zwa_a;
+    error_accel(:,idx) = data_pivoted.a_zwa_a(:,idx) - traj_dr.a_zwa_a;
+    error_omega(:,idx) = data_pivoted.gyro_mocap(:,idx) - data_corrected.gyro(:,idx);
     
     error_velocity(:,isStaticInBatch) = - traj_dr.r_zw_a(:,isStaticInBatch - lv1 + 1);
     
@@ -74,7 +78,7 @@ for lv1 = start_index:interval_size:end_index
     error_omega(:,isStaticInBatch) = - data_corrected.gyro(:,isStaticInBatch);
     
     error_attitude(:,idx) = DCM_TO_ROTVEC(matmul3d(traj_dr.C_ba,...
-        trans3d(dataSynced.C_ba(:,:,idx))));
+        trans3d(data_pivoted.C_ba(:,:,idx))));
 end
 
 % Add weight when static.

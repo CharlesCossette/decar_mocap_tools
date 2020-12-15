@@ -1,25 +1,28 @@
 function [err, error_position, error_velocity, error_accel] = ...
-    imuAccelDeadReckoningError(C_ma, bias_a, scale_a, skew_a, C_ae,...
-                               dataSynced, params) 
+    imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a, skew_a, C_ae,...
+                               data_synced, params) 
 % ERRORDEADRECKONING Corrects the IMU with the provided calibration
 % parameters, then integrates the data forward on specific intervals.
 % Returns the error between the integrated solution and the ground truth.
     
     % Extract some relevant information and parameters.
-    is_gap = dataSynced.gapIndices(:);
-    is_static = dataSynced.staticIndices(:);   
+    is_gap = data_synced.gapIndices(:);
+    is_static = data_synced.staticIndices(:);   
     interval_size = params.interval_size;
     batch_size = params.batch_size;
     start_index = params.start_index;
     end_index = params.end_index;   
     
     % Calibrated Accelerometer measurements
-    data_corrected.t = dataSynced.t;
+    data_corrected.t = data_synced.t;
     T_skew_a = eye(3);
     T_skew_a(1,2) = -skew_a(3);
     T_skew_a(1,3) =  skew_a(2);
     T_skew_a(2,3) = -skew_a(1);
-    data_corrected.accel = C_ma*T_skew_a*diag(scale_a)*(dataSynced.accel + bias_a);
+    data_corrected.accel = C_ma*T_skew_a*diag(scale_a)*(data_synced.accel + bias_a);
+    
+    % Set new pivot point for the mocap data.
+    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
     
     % Corrected gravity in the mocap world frame.
     g_e = [0;0;-9.80665];
@@ -27,9 +30,9 @@ function [err, error_position, error_velocity, error_accel] = ...
     
     % Go through each interval and dead-reckon for a small duration of
     % length batch_size. Compare results to ground truth.
-    error_position = nan(3,length(dataSynced.t));
-    error_velocity = nan(3,length(dataSynced.t));
-    error_accel = nan(3,length(dataSynced.t));
+    error_position = nan(3,length(data_pivoted.t));
+    error_velocity = nan(3,length(data_pivoted.t));
+    error_accel = nan(3,length(data_pivoted.t));
     for lv1 = start_index:interval_size:end_index 
         if ~is_gap(lv1)
             if (lv1 + batch_size) > end_index
@@ -44,13 +47,13 @@ function [err, error_position, error_velocity, error_accel] = ...
 
             % Initial conditions from mocap (if we detected static, force zero
             % velocity).
-            r_zw_a_0 = dataSynced.r_zw_a(:,lv1);
+            r_zw_a_0 = data_pivoted.r_zw_a(:,lv1);
             if is_static(lv1)
                 v_zwa_a_0 = zeros(3,1);
             else
-                v_zwa_a_0 = dataSynced.v_zwa_a(:,lv1);
+                v_zwa_a_0 = data_pivoted.v_zwa_a(:,lv1);
             end
-            t_span = dataSynced.t(idx);        
+            t_span = data_pivoted.t(idx);        
 
             % Initialize
             N = length(t_span);
@@ -67,16 +70,16 @@ function [err, error_position, error_velocity, error_accel] = ...
                 % Use zero-order hold
                 measurement_index = find(data_corrected.t <= t_span(lv2), 1, 'last'); 
                 u_acc_b = data_corrected.accel(:,measurement_index);
-                C_ba = dataSynced.C_ba(:,:,measurement_index); % TODO CHECK INDEX.
+                C_ba = data_pivoted.C_ba(:,:,measurement_index); % TODO CHECK INDEX.
                 v_zwa_a_dr(:,lv2+1) = v_zwa_a_dr(:,lv2) + (C_ba.'*u_acc_b + g_a)*dt;
                 r_zw_a_dr(:,lv2+1) = r_zw_a_dr(:,lv2) + v_zwa_a_dr(:,lv2)*dt;
                 a_zwa_a_dr(:,lv2) = C_ba.'*u_acc_b + g_a;
             end
 
             % Build errors. If static, force zero velocity as the reference. 
-            error_position(:,idx) = dataSynced.r_zw_a(:,idx) - r_zw_a_dr;
-            error_velocity(:,idx) = dataSynced.v_zwa_a(:,idx) - v_zwa_a_dr;                                   
-            error_accel(:,idx) = dataSynced.a_zwa_a(:,idx) - a_zwa_a_dr;
+            error_position(:,idx) = data_pivoted.r_zw_a(:,idx) - r_zw_a_dr;
+            error_velocity(:,idx) = data_pivoted.v_zwa_a(:,idx) - v_zwa_a_dr;                                   
+            error_accel(:,idx) = data_pivoted.a_zwa_a(:,idx) - a_zwa_a_dr;
 
             error_velocity(:,isStaticInBatch) = -v_zwa_a_dr(:,isStaticInBatch - lv1 + 1);
             error_accel(:,isStaticInBatch) = -a_zwa_a_dr(:,isStaticInBatch - lv1 + 1);

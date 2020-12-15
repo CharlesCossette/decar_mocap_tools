@@ -112,8 +112,9 @@ if nargin < 3
     end
     import_results = struct();
 end
-[tol, do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
-do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav, params]...
+[tol, do_imu_position,...
+ do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
+ do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav, params]...
                                                        = processOptions(options)
 
 params.end_index = params.start_index + params.max_total_states - 1;
@@ -121,7 +122,7 @@ if params.end_index > length(data_synced.t)
     params.end_index = length(data_synced.t);
 end
 
-[C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
+[r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
                                            processImportResults(import_results);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                       
@@ -130,9 +131,10 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % compute error vector once
-[~, e_pos, e_vel, e_att] = imuDeadReckoningError(C_ma, C_mg, bias_a, bias_g,...
-                                                 scale_a, scale_g, skew_a, skew_g,...
-                                                 C_ae, data_synced, params);
+[~, e_pos, e_vel, e_att] = imuDeadReckoningError(r_iz, C_ma, C_mg, bias_a,...
+                                                 bias_g, scale_a, scale_g, ...
+                                                 skew_a, skew_g, C_ae,...
+                                                 data_synced, params);
 % Initialize figure handles.
 figure(1)
 cla
@@ -306,7 +308,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     indx_counter = 1;
     
     % compute error vector
-    [e, e_pos, e_vel, ~] = imuAccelDeadReckoningError(C_ma, bias_a,...
+    [e, e_pos, e_vel, ~] = imuAccelDeadReckoningError(r_iz, C_ma, bias_a,...
                                                       scale_a, skew_a,...
                                                       C_ae, data_synced, params);
     
@@ -331,9 +333,22 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     % compute Jacobians
     A = [];
     
+    if do_imu_position
+        f_r_iz = @(r) imuAccelDeadReckoningError(r, C_ma, bias_a, scale_a,...
+                                                 skew_a, C_ae, data_synced,...
+                                                 params);
+                                       
+        A_pivot = complexStepJacobian(f_r_iz,r_iz);
+
+        A = [A, A_pivot];
+        pivot_indices = indx_counter:indx_counter + 2;
+        indx_counter = indx_counter + 3;
+    end
+    
     if do_frame_accel
-        f_Cma = @(C) imuAccelDeadReckoningError(C, bias_a, scale_a, skew_a,...
-                                                C_ae, data_synced, params);
+        f_Cma = @(C) imuAccelDeadReckoningError(r_iz, C, bias_a, scale_a,...
+                                                skew_a, C_ae, data_synced,...
+                                                params);
                                        
         A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,...
                                          'direction','left');
@@ -344,8 +359,9 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_bias_accel
-        f_bias = @(b) imuAccelDeadReckoningError(C_ma, b, scale_a, skew_a,...
-                                                C_ae, data_synced, params);
+        f_bias = @(b) imuAccelDeadReckoningError(r_iz, C_ma, b, scale_a,...
+                                                 skew_a, C_ae, data_synced,...
+                                                 params);
         A_bias = complexStepJacobian(f_bias, bias_a);
         A = [A, A_bias];
         bias_indices = indx_counter:indx_counter + 2;
@@ -353,8 +369,9 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_scale_accel
-        f_scale = @(s) imuAccelDeadReckoningError(C_ma, bias_a, s, skew_a,...
-                                                C_ae, data_synced, params);
+        f_scale = @(s) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, s,...
+                                                  skew_a, C_ae, data_synced,...
+                                                  params);
                                        
         A_scale = complexStepJacobian(f_scale, scale_a);
         A = [A, A_scale];
@@ -363,8 +380,8 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_skew_accel
-        f_skew = @(s) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, s,...
-                                                C_ae, data_synced, params);
+        f_skew = @(s) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a,...
+                                                 s, C_ae, data_synced, params);
         A_skew = complexStepJacobian(f_skew, skew_a);
         A = [A, A_skew];
         skew_indices = indx_counter:indx_counter + 2;
@@ -372,8 +389,8 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end
     
     if do_grav
-        f_C_ae = @(C) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, skew_a,...
-                                                C, data_synced, params);
+        f_C_ae = @(C) imuAccelDeadReckoningError(r_iz, C_ma, bias_a, scale_a,...
+                                                 skew_a, C, data_synced, params);
         f_phi_ae = @(phi) f_C_ae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
         A_phi_ae = complexStepJacobian(f_phi_ae,[0;0]);
         A = [A, A_phi_ae];
@@ -393,6 +410,11 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     end 
     
     % decompose and update
+    if do_imu_position
+        del_pivot = delta(pivot_indices(1:3));
+        r_iz = r_iz + del_pivot;
+    end
+    
     if do_frame_accel
         del_phi_a = delta(phi_indices(1:3));
         C_ma = ROTVEC_TO_DCM(-del_phi_a)*C_ma;
@@ -423,7 +445,7 @@ end
 
 disp('Accelerometer/Gravity Calibration Complete')
 % compute error vector
-[~, e_pos, e_vel] = imuAccelDeadReckoningError(C_ma, bias_a,...
+[~, e_pos, e_vel] = imuAccelDeadReckoningError(r_iz, C_ma, bias_a,...
                                                     scale_a, skew_a,...
                                                     C_ae, data_synced, params);
 RMSE = sqrt((e_pos(:).'*e_pos(:))./length(data_synced.t));
@@ -433,6 +455,7 @@ disp(['Velocity Estimate RMSE After Calibration (m/s): ' , num2str(RMSE)])
 
 %% Results and Output
 g_e = [0;0;-9.80665];
+results.r_iz = r_iz;
 results.C_ms_accel = C_ma;
 results.C_ms_gyro = C_mg;
 results.bias_accel = bias_a;
@@ -443,7 +466,8 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
-data_calibrated = imuCorrectMeasurements(data_synced, results);
+data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz);
+data_calibrated = imuCorrectMeasurements(data_pivoted, results);
 
 % Calibrated ground truth accel/gyro measurements.
 g_a = results.g_a;
@@ -526,13 +550,20 @@ ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
 end
 
 %% OPTIONS PROCESSING
-function [tol, do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
+function [tol, do_imu_position,...
+          do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
           do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav,...
           params] = processOptions(options)
 if isfield(options,'tolerance')
     tol = options.tolerance;
 else
     tol = 1e-6;
+end
+
+if isfield(options,'imu_position')
+    do_imu_position = options.imu_position;    
+else
+    do_imu_position = true;
 end
 
 if isfield(options,'frames')
@@ -632,8 +663,14 @@ end
 
 end
 %% IMPORT RESULTS PROCESSING
-function [C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, skew_g, C_ae] = ...
-                                           processImportResults(import_results)
+function [r_iz, C_ma, C_mg, bias_a, bias_g, scale_a, scale_g, skew_a, ...
+          skew_g, C_ae] = processImportResults(import_results)
+
+if isfield(import_results,'r_iz')
+    r_iz = import_results.r_iz;
+else
+    r_iz = [0;0;0];
+end
 if isfield(import_results,'C_ms_accel')
     C_ma = import_results.C_ms_accel;
 else
