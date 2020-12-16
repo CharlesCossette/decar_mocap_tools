@@ -4,16 +4,17 @@ function [data_aligned, C_ma, C_mg] = alignFrames(data_synced, right_handed_only
 
 if nargin < 2
     right_handed_only = false; % by default, assume the possibility of
-    % left-handed frames
+                               % left-handed frames
 end
 
+% We evaluate accel and gyro completely seperately, as it is possible
+% for them to be using different frames.
 C_ma = findBestFrame(data_synced, @computeErrorAccel, right_handed_only);
 C_mg = findBestFrame(data_synced, @computeErrorGyro, right_handed_only);
 
 if any(C_ma ~= C_mg,'all')
     warning('DECAR_MOCAP_TOOLS: Different accel/gyro frames detected!')
-    warning('DECAR_MOCAP_TOOLS: Gyro will be transformed to the same frame as accel.')
-    
+    warning('DECAR_MOCAP_TOOLS: Gyro will be transformed to the same frame as accel.') 
 end
 
 disp('Best fit accelerometer DCM:')
@@ -34,10 +35,8 @@ function C_ms_best = findBestFrame(data_synced, errorFunc, right_handed_only)
     % axis switches, including left-handed frames.
     % Loop through all the DCMs and try every single one. Find the DCMs
     % with the lowest error.
-    % We evaluate accel and gyro completely seperately, as it is possible
-    % for them to be using different frames.
     J_best = inf;
-    C_ms_best = eye(3); % C_am is a dcm from mocap body frame to accel frame.
+    C_ms_best = eye(3); % C_ms is a dcm from the sensorframe to the mocap body frame.
     for lv1 = 1:size(C_all,3)
         C = C_all(:,:,lv1);
 
