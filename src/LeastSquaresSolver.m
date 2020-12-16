@@ -81,11 +81,11 @@ classdef LeastSquaresSolver < handle
             % H: [M x N] double
             %       jacobian of error with respect to x 
             
-             
-            H = []; % TODO, can be preallocated.
-            
+            e = obj.error_function(x);
+               
             
             % Compute jacobian.
+            H = []; % TODO, can be preallocated.        
             for lv1 = 1:numel(obj.variables)
                 d = obj.variables(lv1).dimension;
                 update = obj.variables(lv1).update_function;
@@ -106,7 +106,18 @@ classdef LeastSquaresSolver < handle
                             end
                             err_jac = imag(obj.error_function(x_jac))./h;
                         case 'finite_difference'
-                            error('TODO')
+                            h = 1e-8;
+                            dx_jac = zeros(d,1);
+                            dx_jac(lv2) = h;
+
+                            x_iter_jac = update(x_iter, dx_jac);
+                            x_jac = x;
+                            if numel(x_jac) == 1
+                                x_jac = x_iter_jac;
+                            else
+                                x_jac{lv1} = x_iter_jac;
+                            end
+                            err_jac = (obj.error_function(x_jac) - e)./h;
                         otherwise
                             error('Derivative method not supported.')
                     end
@@ -117,7 +128,7 @@ classdef LeastSquaresSolver < handle
             if numel(x) == 1
                 x = x{1};
             end
-            e = obj.error_function(x);
+            
             % Compute step (LM? GN?)
             dx = -(H.'*H)\(H.'*e(:));
         end
