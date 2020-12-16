@@ -33,9 +33,12 @@ function [results, data_calibrated] = imuCalibrate(data_synced, options, import_
 %   to toggle on/off different calibration parameters. If a field is
 %   not included in the options struct, a default value will take its
 %       place.
+%       imu_position: (optional) boolean
+%           Default true. Toggle true/false to calibrate imu position  
+%           relative to mocap pivot point of the rigid body.
 %       frames: (optional) boolean
 %           Default true. Toggle true/false to calibrate accel/gyro body  
-%           frame to sensor frame DCMs
+%           frame to sensor frame DCMs.
 %       bias: (optional) boolean
 %           Default true. Toggle true/false to calibrate accel/gyro biases.
 %       scale: (optional) boolean
@@ -68,6 +71,9 @@ function [results, data_calibrated] = imuCalibrate(data_synced, options, import_
 %   Values for the calibration parameters to either use as an initial
 %   guess if that specific parameter is being calibrated, or to use as
 %   a fixed value if it is not being calibrated.
+%       r_iz_b: (optional) [3 x 1] double
+%           Position of IMU relative to mocap's pivot point of the rigid body,
+%           in the body frame.
 %       C_ms_accel: (optional) [3 x 3] double
 %           DCM between mocap body frame and accel sensor frame.
 %       C_ms_accel: (optional) [3 x 3] double
@@ -466,9 +472,14 @@ results.skew_accel = skew_a;
 results.skew_gyro = skew_g;
 results.g_a = C_ae*g_e;
 
+% Reset the mocap pivot point, refit a spline, and generate new ground truth
+% accelerometer and gyroscope measurements using the newly calibrated gravity 
+% vector
 data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b,...
                                      'fit_spline_bool', true,...
                                      'g_a',results.g_a);
+                                 
+% Add the calibrated accelerometer and gyroscope measurements
 data_calibrated = imuCorrectMeasurements(data_pivoted, results);
 
 % % Calibrated ground truth accel/gyro measurements.

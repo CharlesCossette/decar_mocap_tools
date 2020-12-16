@@ -1,4 +1,4 @@
-function pp = mocapGetSplineProperties(data_mocap, gap_size)
+function spline_properties = mocapGetSplineProperties(data_mocap, gap_size)
 % Extracts the defining properties of the B-spline.
 
     t = data_mocap.t(:);
@@ -16,8 +16,8 @@ function pp = mocapGetSplineProperties(data_mocap, gap_size)
 
     % Generate the defining properties of the B-spline.
     % Assume initial and final velocity, angular velocity are 0
-    %pp = spline(t,waypoints);
-    pp = csaps(t,waypoints,0.999999);
-    %pp = fn2fm(spaps(t,waypoints,0.00001,[],2),'pp')
+    %spline_properties = spline(t,waypoints);
+    spline_properties = csaps(t,waypoints,0.999999);
+    %spline_properties = fn2fm(spaps(t,waypoints,0.00001,[],2),'pp')
 
 end

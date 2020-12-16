@@ -32,7 +32,7 @@ for lv1=1:1:numel(rigid_bodies)
         % Evaluating the performance of the fit, visually
         % user-defined trigger
         if visual_bool
-            plotScript(data_mocap,spline_mocap,body_name)
+            plotScript(data_mocap, spline_mocap, body_name)
         end
         
     end
@@ -43,7 +43,7 @@ end
 
 function plotScript(data, spline_mocap, body_name)
 
-t = spline_mocap.(body_name{1}).breaks';
+t = spline_mocap.(body_name{1}).breaks.';
 
 spline_points = ppval(spline_mocap.(body_name{1}),t);
 staticIndices = getIndicesFromIntervals(t, data.(body_name{1}).staticIntervals);

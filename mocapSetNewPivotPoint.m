@@ -6,17 +6,33 @@ function data_pivot = mocapSetNewPivotPoint(data_mocap, pos_shift, varargin)
 % PARAMETERS:
 % -----------
 % data_mocap: struct
-%       Mocap data as extracted by mocapCsvToStruct()
-% rigid_body_name: string
-%       target rigid body to apply to modification, as named by the mocap.
+%       Mocap data. Could be in the format extracted by mocapCsvToStruct() or
+%       by imuMocapSyncTime().
 % pos_shift: [3 x 1] double
 %       Position shift IN THE BODY FRAME of <rigid_body_name>. I.e. this
 %       quantity should be r_pz_b, where p will be the new reference point.
-% 
+% varargin: name-value pairs
+%   'rigid_body_name'
+%       Default: 'None'
+%       Provide a string of the name of the target rigid body for the
+%       modification, as named by the mocap, only if data_mocap is the output of
+%       mocapCsvToStruct().
+%   'fit_spline_bool'
+%       Default: false
+%       Provide a true/false value on whether the user would like to fit a
+%       spline to the mocap data after the modification. If true, corresponding
+%       velocity, acceleration, and ground truth accel/gyro data are extracted.
+%   'gap_size'
+%       Default: 1
+%       Provide a float for the downsampling of data for quick spline fitting.
+%   'g_a'
+%       Default: [0;0;-9.80665]
+%       Provide a [3 x 1] double representing the calibrated gravity vector.
+%
 % RETURNS:
 % --------
-% data_mocap: struct
-%       Supplied mocap data but with the modification.
+% data_pivot: struct
+%       Supplied mocap data but with the modifications.
 
     if nargin < 2
         error('Missing data')
@@ -46,27 +62,38 @@ function data_pivot = mocapSetNewPivotPoint(data_mocap, pos_shift, varargin)
     gap_size = p.Results.gap_size;
     g_a = p.Results.g_a;
     
-    
+    % Extarct the data associated with the rigid body being modified
     if strcmp(rigid_body_name,'None')
         data_rigid_body = data_mocap;
     else
         data_rigid_body = data_mocap.(rigid_body_name);
     end
     
+    % Move the mocap pivot point
     for lv1=1:1:length(data_mocap.t)
         data_rigid_body.r_zw_a(:,lv1) ...
                 = data_rigid_body.r_zw_a(:,lv1)...
                     + data_rigid_body.C_ba(:,:,lv1)'*pos_shift;
     end
        
+    % Fit a spline to the modified mocap data
     if fit_spline_bool
-        data_rigid_body.type = 'Rigid Body';
-        data_rigid_body.gapIntervals = mocapGetGapIntervals(data_rigid_body);
-        mocap_spline = mocapGetSplineProperties(data_rigid_body, gap_size);
-        [mocap_accel, mocap_gyro, mocap_corrected]...
-                = getFakeImuMocap(mocap_spline,data_rigid_body.t,g_a);
+        if isfield(data_rigid_body, 'q_ba')
+            % Extract the spline parameters
+            data_rigid_body.type = 'Rigid Body';
+            data_rigid_body.gapIntervals = mocapGetGapIntervals(data_rigid_body);
+            mocap_spline = mocapGetSplineProperties(data_rigid_body, gap_size);
+            
+            % Extract the ground truth accel/gyro measurements, and correct the
+            % velocity and acceleration data using the new pivot point
+            [mocap_accel, mocap_gyro, mocap_corrected]...
+                    = getFakeImuMocap(mocap_spline,data_rigid_body.t,g_a);
+        else
+            error('Quaternion data is required to fit a spline using MOCAP Tools.')
+        end
     end
     
+    % Save the modified data to the output
     data_pivot = data_mocap;
     if strcmp(rigid_body_name,'None')
         data_pivot.r_zw_a = data_rigid_body.r_zw_a;

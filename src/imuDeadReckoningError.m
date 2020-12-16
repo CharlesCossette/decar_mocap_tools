@@ -27,12 +27,18 @@ calib_params.skew_gyro = skew_g;
 % Calibrated measurements
 data_corrected = imuCorrectMeasurements(data_synced, calib_params);
 
-% Set new pivot point for the mocap data.
-data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b);
-
 % Corrected gravity in the mocap world frame.
 g_e = [0;0;-9.80665];
 g_a = C_ae*g_e;
+
+% Set new pivot point for the mocap data only if r_iz_b is not the zero vector.
+if any(r_iz_b)
+    data_pivoted = mocapSetNewPivotPoint(data_synced, r_iz_b,...
+                                         'fit_spline_bool', true,...
+                                         'g_a', g_a);
+else
+    data_pivoted = data_synced;
+end
 
 % Go through each interval and dead-reckon for a small duration of
 % length batch_size. Compare results to ground truth.
