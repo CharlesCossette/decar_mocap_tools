@@ -1,4 +1,4 @@
-function [data, t_0] = sensorsCsvToStruct(filename)
+function data = sensorsCsvToStruct(filename)
 %SENSORSCSVTOSTRUCT Extracts data from a CSV file, and returns a struct.
 %The x,y,z components of vector quantities are lumped into a [3 x N]
 %matrix, and all units are converted to SI units.
@@ -9,6 +9,15 @@ function [data, t_0] = sensorsCsvToStruct(filename)
     
     % Find indices of columns containing "timestamp".
     idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
+    
+    if numel(idx_time) == 0
+        % Then header row was not properly detected.
+        % we will try the first row instead
+        opts = detectImportOptions(filename,'VariableNamesLine',1,'PreserveVariableNames',true);
+        T = readtable(filename,opts);
+        header_names = T.Properties.VariableNames;   
+        idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
+    end
     
     % If there are multiple timestamp columns, we interpret this as
     % multiple parallel data series concatenated side-by-side.
@@ -45,7 +54,6 @@ function [data, t_0] = sensorsCsvToStruct(filename)
         data_series.t = data_series.t - data_series.t_0;
         data.(['data',num2str(lv1)]) = data_series;
     end
-    t_0 = 0;
     fieldnames = fields(data);
     if numel(fieldnames) == 1
         data = data.(fieldnames{1});

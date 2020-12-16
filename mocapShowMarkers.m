@@ -23,15 +23,15 @@ function mocapShowMarkers(data_mocap)
         switch data_mocap.(fieldnames{lv1}).type
             case 'Rigid Body'
                 rgb = data_mocap.(fieldnames{lv1});
-                r = rgb.r_zw_a(:,1);
-                C = rgb.C_ba(:,:,1);
+                r = rgb.r_zw_a(:,5);
+                C = rgb.C_ba(:,:,5);
                 triad = AnimatedTriad();
                 triad.plot(r,C);
                 text(r(1), r(2), r(3) + 1.1, fieldnames{lv1},...
                     'FontSize',18, 'FontWeight', 'bold')
             case 'Marker'
                 marker = data_mocap.(fieldnames{lv1});
-                r = marker.r_zw_a(:,1);
+                r = marker.r_zw_a(:,5);
                 C = eye(3);
                 sph = AnimatedSphere();
                 sph.radius = 0.01;
@@ -48,4 +48,5 @@ function mocapShowMarkers(data_mocap)
     axis equal
     axis vis3d
     grid on
+    view(3)
 end
