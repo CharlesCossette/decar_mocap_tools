@@ -1,7 +1,7 @@
 function  S = optitrackCsvToStruct(filename)
-%MOCAP_CSV2STRUCT Extracts the relevant information from the raw Optitrack
-%csv file and stores it into a struct. Also removes any markers with a
-%visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
+% optitrackCsvToStruct Extracts the relevant information from the raw Optitrack
+% csv file and stores it into a struct. Also removes any markers with a
+% visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
 %
 % The axis switch is as follows:
 %   Mocap X becomes Y
@@ -40,8 +40,10 @@ function  S = optitrackCsvToStruct(filename)
 %           axis switch described above.
 %       C_ba: [3 x 3 x N] double.
 %           DCM corresponding to the above quaternion.
-%       mocapGaps: [2 x M]
+%       gapIntervals: [2 x M]
 %           Sections of time where no ground truth data was collected.
+%       staticIntervals: [2 x K]
+%           Sections of time where the rigid body was static.
 
 % Use built-in matlab function to automatically detect the header rows.
 opts = detectImportOptions(filename);

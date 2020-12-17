@@ -1,22 +1,7 @@
 function  S = viconCsvToStruct(filename)
-%MOCAP_CSV2STRUCT Extracts the relevant information from the raw Optitrack
-%csv file and stores it into a struct. Also removes any markers with a
-%visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
-%
-% The axis switch is as follows:
-%   Mocap X becomes Y
-%   Mocap Y becomes Z
-%   Mocap Z becomes X
-%
-% If frame b is the mocap body frame, frame a is the mocap "world" frame,
-% and frame a' is the new desired world frame where Z points up, we must
-% apply the following transformation
-%   C_ba' = C_ba * C_aa'
-% where
-%   C_aa' = [0 1 0; 0 0 1; 1 0 0].
-% This transformation is equivalently done below in quaternions with
-%   q_aa' = [0.5 0.5 0.5 0.5].
-% We use the SCALAR FIRST convention for quaternions.
+% viconCsvToStruct extracts the relevant information from the raw Vicon
+% csv file and stores it into a struct. Also removes any markers with a
+% visibility less than 10%.
 %
 % WARNING: Requires MATLAB 2019a or later with the AEROSPACE TOOLBOX.
 %
@@ -35,13 +20,15 @@ function  S = viconCsvToStruct(filename)
 %           marker in the mocap world frame set by calibrating the ground
 %           plane.
 %       q_ba: [4 x N] double.
-%           Attitude quaternion provided by the Optitrack system, which has
+%           Attitude quaternion provided by the Vicon system, which has
 %           been corrected to correspond to the new "a" frame after the
 %           axis switch described above.
 %       C_ba: [3 x 3 x N] double.
 %           DCM corresponding to the above quaternion.
-%       mocapGaps: [2 x M]
+%       gapIntervals: [2 x M]
 %           Sections of time where no ground truth data was collected.
+%       staticIntervals: [2 x K]
+%           Sections of time where the rigid body was static.
 
 % Use built-in matlab function to automatically detect the header rows.
 opts = detectImportOptions(filename);
@@ -66,11 +53,12 @@ headers = headers(:,~to_delete);
 data = data(:,~to_delete);
 
 
-%%
-% Rewrite the frame numbers as time-stamps
+%% STEP 2 - Create the timestamps
+% Rewrite the frame numbers as timestamps
 frequency = headers{1,1};
 data(:,1) = data(:,1) ./ frequency;
 
+%% STEP 3 - Extract the name, position, and attitude of each rigid body
 % Find the first column of each rigid body
 is_RX = cellfun(@(x) stringincell(x,'RX'),headers);
 [~,col_RX] = find(is_RX);
@@ -78,27 +66,33 @@ is_RX = cellfun(@(x) stringincell(x,'RX'),headers);
 % Save the name, position, and quaternion data to a struct S
 if ~isempty(col_RX)
     for lv1=1:numel(col_RX)
+        % Extract the name
         name = headers{2, col_RX(lv1)};
         name = strrep(name,'Global Angle (Quaternion) ', '');
         name = strrep(name,':', '');
         name = name(1:length(name)/2);
         
+        % Save the timestamps and type to the struct 
         S.(name).t = data(:,1);
         S.(name).type = 'Rigid Body'; % Vicon only records bodies
         
+        % Extract attitude measurements
         quat_x = data(:,col_RX(lv1));
         quat_y = data(:,col_RX(lv1)+1);
         quat_z = data(:,col_RX(lv1)+2);
         quat_w = data(:,col_RX(lv1)+3);
-        pos_x = data(:,col_RX(lv1)+4);
-        pos_y = data(:,col_RX(lv1)+5);
-        pos_z = data(:,col_RX(lv1)+6);
-
+        
         S.(name).q_ba = [quat_w.';
                          quat_x.';
                          quat_y.';
                          quat_z.'];
         S.(name).C_ba = quatToDcm(S.(name).q_ba);
+        
+        % Extract position measurements
+        pos_x = data(:,col_RX(lv1)+4);
+        pos_y = data(:,col_RX(lv1)+5);
+        pos_z = data(:,col_RX(lv1)+6);
+        
         S.(name).r_zw_a = [pos_x.';
                            pos_y.';
                            pos_z.'];

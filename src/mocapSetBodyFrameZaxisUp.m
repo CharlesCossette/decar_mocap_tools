@@ -1,4 +1,6 @@
 function S_corrected = mocapSetBodyFrameZaxisUp(S, name)
+% mocapSetBodyFrameZaxisUp ensures that the z-axis of the body frame of the 
+% specified rigid body, as specified by the Mocap system, is pointing upwards.
 
     S_corrected = S;
     
