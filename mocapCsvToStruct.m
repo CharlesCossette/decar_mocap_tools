@@ -1,4 +1,4 @@
-function S = mocapCsvToStruct(filename, mocap_system)
+function data_mocap = mocapCsvToStruct(filename, mocap_system)
 % mocapCsvToStruct calls the function corresponding to the Motion capture 
 % system specified by the user. This then extracts the relevant information 
 % from the raw csv file and stores it into a struct. 
@@ -16,7 +16,7 @@ function S = mocapCsvToStruct(filename, mocap_system)
 %       Vicon.
 % RETURNS:
 % ---------
-%   S: [struct] with fields
+%   data_mocap: [struct] with fields
 %       t: [N x 1] double.
 %           Time points of all the data.
 %       r_zw_a: [3 x N] double.
@@ -40,11 +40,11 @@ function S = mocapCsvToStruct(filename, mocap_system)
 
     switch lower(mocap_system)
         case 'optitrack'
-            S = optitrackCsvToStruct(filename);
+            data_mocap = optitrackCsvToStruct(filename);
         case 'vicon'
-            S = viconCsvToStruct(filename);
+            data_mocap = viconCsvToStruct(filename);
         otherwise
-            error('Mocap system unsupported.')
+            error('DECAR_MOCAP_TOOLS: Mocap system unsupported.')
     end
 
 end

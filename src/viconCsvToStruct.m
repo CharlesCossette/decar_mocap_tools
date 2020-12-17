@@ -1,4 +1,4 @@
-function  S = viconCsvToStruct(filename)
+function  data_mocap = viconCsvToStruct(filename)
 % viconCsvToStruct extracts the relevant information from the raw Vicon
 % csv file and stores it into a struct. Also removes any markers with a
 % visibility less than 10%.
@@ -12,7 +12,7 @@ function  S = viconCsvToStruct(filename)
 %
 % Outputs:
 % --------
-%   S: [struct] with fields
+%   data_mocap: [struct] with fields
 %       t: [N x 1] double.
 %           Time points of all the data.
 %       r_zw_a: [3 x N] double.
@@ -73,8 +73,8 @@ if ~isempty(col_RX)
         name = name(1:length(name)/2);
         
         % Save the timestamps and type to the struct 
-        S.(name).t = data(:,1);
-        S.(name).type = 'Rigid Body'; % Vicon only records bodies
+        data_mocap.(name).t = data(:,1);
+        data_mocap.(name).type = 'Rigid Body'; % Vicon only records bodies
         
         % Extract attitude measurements
         quat_x = data(:,col_RX(lv1));
@@ -82,24 +82,24 @@ if ~isempty(col_RX)
         quat_z = data(:,col_RX(lv1)+2);
         quat_w = data(:,col_RX(lv1)+3);
         
-        S.(name).q_ba = [quat_w.';
+        data_mocap.(name).q_ba = [quat_w.';
                          quat_x.';
                          quat_y.';
                          quat_z.'];
-        S.(name).C_ba = quatToDcm(S.(name).q_ba);
+        data_mocap.(name).C_ba = quatToDcm(data_mocap.(name).q_ba);
         
         % Extract position measurements
         pos_x = data(:,col_RX(lv1)+4);
         pos_y = data(:,col_RX(lv1)+5);
         pos_z = data(:,col_RX(lv1)+6);
         
-        S.(name).r_zw_a = [pos_x.';
+        data_mocap.(name).r_zw_a = [pos_x.';
                            pos_y.';
                            pos_z.'];
                        
         % Now, we will check if the silly user set the mocap body frame to
         % have a y-axis be up. Fix it for them if they did that. Shame!
-        S = mocapSetBodyFrameZaxisUp(S, name);        
+        data_mocap = mocapSetBodyFrameZaxisUp(data_mocap, name);        
     end
 else
     error('ViconCsvToStruct requires quaternion outputs from the Vicon system.')
@@ -110,21 +110,21 @@ end
 % TODO: add visualization for this
 % TODO: some gaps not being detected (i.e. gap of length 1, see
 % test_dataset9)
-objectNames = fieldnames(S);
+objectNames = fieldnames(data_mocap);
 objectNum   = length(objectNames);
 for lv1=1:1:objectNum
-    object = S.(objectNames{lv1});
-    S.(objectNames{lv1}).gapIntervals = mocapGetGapIntervals(object);
+    object = data_mocap.(objectNames{lv1});
+    data_mocap.(objectNames{lv1}).gapIntervals = mocapGetGapIntervals(object);
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
-objectNames = fieldnames(S);
+objectNames = fieldnames(data_mocap);
 objectNum   = length(objectNames);
 stdDevThreshold = 0.001;
 windowSize = 1;
 for lv1=1:1:objectNum
-    object = S.(objectNames{lv1});
-    S.(objectNames{lv1}).staticIntervals = ...
+    object = data_mocap.(objectNames{lv1});
+    data_mocap.(objectNames{lv1}).staticIntervals = ...
         mocapGetStaticIntervals(object, windowSize, stdDevThreshold);
 end
 

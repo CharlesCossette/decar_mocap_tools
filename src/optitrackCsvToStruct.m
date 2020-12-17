@@ -1,4 +1,4 @@
-function  S = optitrackCsvToStruct(filename)
+function  data_mocap = optitrackCsvToStruct(filename)
 % optitrackCsvToStruct Extracts the relevant information from the raw Optitrack
 % csv file and stores it into a struct. Also removes any markers with a
 % visibility less than 10%, and REALIGNS THE AXES SO THAT Z POINTS UP.
@@ -27,7 +27,7 @@ function  S = optitrackCsvToStruct(filename)
 %
 % Outputs:
 % --------
-%   S: [struct] with fields
+%   data_mocap: [struct] with fields
 %       t: [N x 1] double.
 %           Time points of all the data.
 %       r_zw_a: [3 x N] double.
@@ -115,8 +115,8 @@ for lv1 = 1:numel(IDs)
     [~,pos_y_col] = find(sum(is_id + is_pos + is_y - is_rgb_marker,1) == 3);
     [~,pos_z_col] = find(sum(is_id + is_pos + is_z - is_rgb_marker,1) == 3);
     
-    S.(name).t = data(:,2);
-    S.(name).type = type;
+    data_mocap.(name).t = data(:,2);
+    data_mocap.(name).type = type;
     
     if ~isempty(quat_x_col)
         % If a quaternion is available, add it to the data.
@@ -139,19 +139,19 @@ for lv1 = 1:numel(IDs)
         % Notation: Quaternions are represented as q = [epsilon; eta] where
         % eta is the vector part.
         q_aaprime = 0.5*ones(4,1); % Quaternion corresponding to C_aa'
-        S.(name).q_ba =  quatMult(q_ba_mocap, q_aaprime);
+        data_mocap.(name).q_ba =  quatMult(q_ba_mocap, q_aaprime);
         
-        S.(name).C_ba = quatToDcm(S.(name).q_ba);
+        data_mocap.(name).C_ba = quatToDcm(data_mocap.(name).q_ba);
         
         % Now, we will check if the silly user set the mocap body frame to
         % have a y-axis be up. Fix it for them if they did that. Shame!
-        S = mocapSetBodyFrameZaxisUp(S, name);
+        data_mocap = mocapSetBodyFrameZaxisUp(data_mocap, name);
         
     end
     
     % AXES SWITCHED SO Z POINTS UP
     C_aaprime = [0 1 0; 0 0 1; 1 0 0];
-    S.(name).r_zw_a = C_aaprime.'*[data(:,pos_x_col).';
+    data_mocap.(name).r_zw_a = C_aaprime.'*[data(:,pos_x_col).';
                                    data(:,pos_y_col).';
                                    data(:,pos_z_col).'];
 end
@@ -161,21 +161,21 @@ end
 % TODO: add visualization for this
 % TODO: some gaps not being detected (i.e. gap of length 1, see
 % test_dataset9)
-objectNames = fieldnames(S);
+objectNames = fieldnames(data_mocap);
 objectNum   = length(objectNames);
 for lv1=1:1:objectNum
-    object = S.(objectNames{lv1});
-    S.(objectNames{lv1}).gapIntervals = mocapGetGapIntervals(object);
+    object = data_mocap.(objectNames{lv1});
+    data_mocap.(objectNames{lv1}).gapIntervals = mocapGetGapIntervals(object);
 end
 
 %% Step 5 - For each ID, extract time range where the object is stationary.
-objectNames = fieldnames(S);
+objectNames = fieldnames(data_mocap);
 objectNum   = length(objectNames);
 stdDevThreshold = 0.001;
 windowSize = 1;
 for lv1=1:1:objectNum
-    object = S.(objectNames{lv1});
-    S.(objectNames{lv1}).staticIntervals = ...
+    object = data_mocap.(objectNames{lv1});
+    data_mocap.(objectNames{lv1}).staticIntervals = ...
         mocapGetStaticIntervals(object, windowSize, stdDevThreshold);
 end
 
