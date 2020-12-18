@@ -42,12 +42,13 @@ function data = sensorsCsvToStruct(filename)
         data_series = cleanupTimestamps(data_series, data_raw, header_series);
         data_series = cleanupAccel(data_series, data_raw, header_series);
         data_series = cleanupGyro(data_series, data_raw, header_series);
+        data_series = cleanupPos(data_series, data_raw, header_series);
+%         data_series = cleanupUwb(data_series, data_raw, header_series); % TODO
         data_series = cleanupMag(data_series, data_raw, header_series);
         data_series = cleanupPres(data_series, data_raw, header_series);
         data_series = cleanupTemp(data_series, data_raw, header_series);
         data_series = cleanupEuler(data_series, data_raw, header_series);
         data_series = cleanupQuat(data_series, data_raw, header_series);
-        %data_series = cleanupUWB(data, data_raw, header_names);
         fieldnames = fields(data_series);
         data_series.t = data_series.(fieldnames{1}); % I hate this. 
         data_series.t_0 = data_series.t(1);
@@ -62,6 +63,7 @@ end
 function data = cleanupTimestamps(data, data_raw, header_names)
     data = cleanupScalar(data, data_raw, header_names, 'time');
 end
+
 function data = cleanupAccel(data, data_raw, header_names)
     data = cleanup3dVector(data, data_raw, header_names, 'accel');
 end
@@ -69,6 +71,16 @@ end
 function data = cleanupGyro(data, data_raw, header_names)
     data = cleanup3dVector(data, data_raw, header_names, 'gyro');
 end
+
+function data = cleanupPos(data, data_raw, header_names)
+    data = cleanup3dVector(data, data_raw, header_names, 'pos');
+end
+
+% TODO:
+% function data = cleanupUwb(data, data_raw, header_names)
+%     data = cleanupScalar(data, data_raw, header_names, 'range');
+%     data = cleanupScalar(data, data_raw, header_names, 'rss');
+% end
 
 function data = cleanupMag(data, data_raw, header_names)
     data = cleanup3dVector(data, data_raw, header_names, 'mag');
@@ -164,7 +176,17 @@ function data = cleanup3dVector(data, data_raw, header_names, identifier)
         header_z = header_names{idx_z};
         data_z = convertToSI(data_z, header_z);
 
+        % Check if this measurement is associated with a specific tag name, 
+        % and add it to the field name. The naming convention for tags uses 6
+        % characters starting with '0x'.
+        if contains(header_x, '0x')
+            idx_tag = strfind(header_x, '0x');
+            tag_name = header_x(idx_tag:idx_tag+5);
+            identifier = [identifier, '_', tag_name];
+        end
+        
         data.(identifier) = [data_x(:).'; data_y(:).'; data_z(:).'];
+        
     end
 end
 
