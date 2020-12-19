@@ -215,7 +215,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
     if do_frame_gyro
         f_Cmg = @(C) imuGyroDeadReckoningError(C, bias_g, scale_g, skew_g,...
                                                    data_synced, params); 
-        A_phi_g = complexStepJacobianLie(f_Cmg,C_mg,3,@CrossOperator,...
+        A_phi_g = complexStepJacobianLie(f_Cmg, C_mg, 3, @CrossOperator,...
                                          'direction','left');
 
         A = [A, A_phi_g];
@@ -296,7 +296,8 @@ disp(['Attitude Estimate RMSE After Calibration (rad): ' , num2str(RMSE)])
 % Provide an initial guess for the biases.
 if any(data_synced.staticIndices)
     isStatic = data_synced.staticIndices;
-    bias_a = mean(data_synced.accel_mocap(:,isStatic) - data_synced.accel(:,isStatic),2);
+    bias_a = mean(data_synced.accel_mocap(:,isStatic)...
+                                            - data_synced.accel(:,isStatic),2);
 end
 delta = Inf;
 iter = 0;
@@ -335,7 +336,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         f_Cma = @(C) imuAccelDeadReckoningError(C, bias_a, scale_a, skew_a,...
                                                 C_ae, data_synced, params);
                                        
-        A_phi_a = complexStepJacobianLie(f_Cma,C_ma,3,@CrossOperator,...
+        A_phi_a = complexStepJacobianLie(f_Cma, C_ma, 3, @CrossOperator,...
                                          'direction','left');
 
         A = [A, A_phi_a];
@@ -375,7 +376,7 @@ while norm(delta) > tol && iter < 10 && delta_cost >  tol
         f_C_ae = @(C) imuAccelDeadReckoningError(C_ma, bias_a, scale_a, skew_a,...
                                                 C, data_synced, params);
         f_phi_ae = @(phi) f_C_ae(expmTaylor(CrossOperator([phi(1);phi(2);0])*C_ae));
-        A_phi_ae = complexStepJacobian(f_phi_ae,[0;0]);
+        A_phi_ae = complexStepJacobian(f_phi_ae, [0;0]);
         A = [A, A_phi_ae];
         grav_indices = indx_counter:indx_counter + 1;
     end
@@ -640,7 +641,7 @@ else
     C_ma = eye(3);
 end
 if isfield(import_results,'C_ms_gyro')
-    C_mg = import_results.C_ms_accel;
+    C_mg = import_results.C_ms_gyro;
 else
     C_mg = eye(3);
 end
