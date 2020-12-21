@@ -95,7 +95,7 @@ if ~isempty(col_RX)
         
         data_mocap.(name).r_zw_a = [pos_x.';
                            pos_y.';
-                           pos_z.'];
+                           pos_z.']./1000; % Convert to meters
                        
         % Now, we will check if the silly user set the mocap body frame to
         % have a y-axis be up. Fix it for them if they did that. Shame!
@@ -120,7 +120,7 @@ end
 %% Step 5 - For each ID, extract time range where the object is stationary.
 objectNames = fieldnames(data_mocap);
 objectNum   = length(objectNames);
-stdDevThreshold = 0.001;
+stdDevThreshold = 0.01;
 windowSize = 1;
 for lv1=1:1:objectNum
     object = data_mocap.(objectNames{lv1});
