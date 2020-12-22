@@ -1,4 +1,4 @@
-function [data, t_0] = sensorsCsvToStruct(filename)
+function data = sensorsCsvToStruct(filename)
 %SENSORSCSVTOSTRUCT Extracts data from a CSV file, and returns a struct.
 %The x,y,z components of vector quantities are lumped into a [3 x N]
 %matrix, and all units are converted to SI units.
@@ -10,15 +10,32 @@ function [data, t_0] = sensorsCsvToStruct(filename)
     % Find indices of columns containing "timestamp".
     idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
     
+    if numel(idx_time) == 0
+        % Then header row was not properly detected.
+        % we will try the first row instead
+        opts = detectImportOptions(filename,'VariableNamesLine',1,'PreserveVariableNames',true);
+        T = readtable(filename,opts);
+        header_names = T.Properties.VariableNames;   
+        idx_time = find(contains(header_names,'timestamp','IgnoreCase',true));
+    end
+    
     % If there are multiple timestamp columns, we interpret this as
     % multiple parallel data series concatenated side-by-side.
-    idx_time_diff = diff(idx_time);
-    idx_series_start = [idx_time([true,(idx_time_diff > 1)]), numel(header_names)];
+    if numel(idx_time) > 1
+        idx_time_diff = diff(idx_time);
+        idx_series_start = idx_time([true,(idx_time_diff > 1)]);
+    else
+        idx_series_start = idx_time;
+    end
     
     data = struct();
-    for lv1 = 1:numel(idx_series_start)-1
-        idx_series = idx_series_start(lv1):(idx_series_start(lv1+1) - 1);
-        data_raw = table2struct(rmmissing(T(:,idx_series)),'ToScalar',true); 
+    for lv1 = 1:numel(idx_series_start)
+        if lv1 == numel(idx_series_start)
+            idx_series = idx_series_start(lv1):numel(header_names);
+        else
+            idx_series = idx_series_start(lv1):(idx_series_start(lv1+1) - 1);
+        end
+        data_raw = table2struct(rmmissing(T(:,idx_series),'MinNumMissing',numel(idx_series)),'ToScalar',true); 
 
         header_series = header_names(idx_series);
         data_series = struct();
@@ -31,13 +48,16 @@ function [data, t_0] = sensorsCsvToStruct(filename)
         data_series = cleanupEuler(data_series, data_raw, header_series);
         data_series = cleanupQuat(data_series, data_raw, header_series);
         %data_series = cleanupUWB(data, data_raw, header_names);
-        fn = fields(data_series);
-        data_series.t = data_series.(fn{1}); % I hate this. 
+        fieldnames = fields(data_series);
+        data_series.t = data_series.(fieldnames{1}); % I hate this. 
         data_series.t_0 = data_series.t(1);
         data_series.t = data_series.t - data_series.t_0;
         data.(['data',num2str(lv1)]) = data_series;
     end
-    t_0 = 0;
+    fieldnames = fields(data);
+    if numel(fieldnames) == 1
+        data = data.(fieldnames{1});
+    end
 end
 function data = cleanupTimestamps(data, data_raw, header_names)
     data = cleanupScalar(data, data_raw, header_names, 'time');

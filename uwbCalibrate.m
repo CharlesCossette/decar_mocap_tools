@@ -1,5 +1,6 @@
-function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_names, tag_names, remove_outliers)
-% calibrateUWB corrects the UWB measurements by removing biases using 
+function data_uwb_corrected = uwbCalibrate(spline_mocap, data_uwb, r_pz_b,...
+                                           body_names, tag_names, remove_outliers)
+% UWBCALIBRATE corrects the UWB measurements by removing biases using 
 % ground truth data. To do so, a heavily smoothed spline is fit to the
 % error between the range measurements and the ground truth distance, which
 % is then subtracted from the range measurements.
@@ -36,7 +37,6 @@ function data_uwb_corrected = calibrateUWB(spline_mocap, data_uwb, r_pz_b, body_
 %           meas: [N x 1] double.
 %              The measurements between the two tags.
 %
-% ------------------------------------------------------------------------------
 
     % initialize struct to store new corrected data
     data_uwb_corrected = struct();

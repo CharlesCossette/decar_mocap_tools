@@ -1,4 +1,4 @@
-function [results, data_calibrated] = calibrateImu(data_synced, options, import_results)
+function [results, data_calibrated] = imuCalibrate(data_synced, options, import_results)
 %IMUCALIBRATE Determines the calibration parameters of the accelerometer
 % and gyroscope, which are the sensorframe-to-bodyframe DCMs, biases, scale
 % factors, axis misalignments ("skew"), and mocap local frame gravity
