@@ -690,7 +690,7 @@ else
     C_ma = eye(3);
 end
 if isfield(import_results,'C_ms_gyro')
-    C_mg = import_results.C_ms_accel;
+    C_mg = import_results.C_ms_gyro;
 else
     C_mg = eye(3);
 end
