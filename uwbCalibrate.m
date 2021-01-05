@@ -37,6 +37,7 @@ function data_uwb_corrected = uwbCalibrate(spline_mocap, data_uwb, r_pz_b,...
 %           meas: [N x 1] double.
 %              The measurements between the two tags.
 %
+% TODO: Fix spline blowing up when outside mocap data.
 
     % initialize struct to store new corrected data
     data_uwb_corrected = struct();
@@ -152,6 +153,16 @@ function data_uwb_corrected = uwbCalibrate(spline_mocap, data_uwb, r_pz_b,...
 %         data_uwb_corrected.(field_iter).t = data_uwb_corrected.(field_iter).t(~meas_outliers_idx);
         
         % ------------------------------ OUTPUTS ------------------------------ %
+        % Plotting - True vs Measured
+        figure
+        plot(t_rm_missing, meas_rm_missing)
+        hold on
+        plot(t_rm_missing, dist_rm_missing)
+        hold off
+        grid on
+        xlabel('$t$ [s]', 'Interpreter', 'Latex')
+        ylabel('$d$ [m]', 'Interpreter', 'Latex')
+        title({'True vs Measured Distances',['tags ', tag1, ' and ', tag2]})
         
         % Plotting - spline fit (with the outliers)
         figure

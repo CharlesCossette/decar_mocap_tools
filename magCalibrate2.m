@@ -50,7 +50,8 @@ end
 
 % Normalize measurements for numerical conditioning.
 % TODO. Need to figure this out properly.
-%data_synced.mag = data_synced.mag./mean(vecnorm(data_synced.mag));
+normalization_factor = mean(vecnorm(data_synced.mag));
+data_synced.mag = data_synced.mag./normalization_factor;
 
 if nargin == 3
     D_0 = import_results.D;
@@ -112,7 +113,7 @@ C_ae_0 = expm(crossOp(phi_vec_ae_0));
 
 % REFINEMENT STEP 1 - Solving for only a rotation and mag vector
 variables(1).x_0 = C_ae_0;
-variables(1).update_func = @(X, dx) X*expm(crossOp([dx;0]));
+variables(1).update_func = @(X, dx) expm(crossOp([dx;0]))*X;
 variables(1).dimension = 2;
 variables(1).disabled = checkField(options, 'vector');
 
@@ -170,7 +171,7 @@ function err = errorMag1(x, D, bias, data_synced)
    
     m_a = C_ae*[0;0;1];
 
-    for lv1=1:1:length(data_synced.t)
+    for lv1=1:5:length(data_synced.t) % Downsample for speed.
         err(:,lv1) = data_synced.mag(:,lv1) - (D*C*data_synced.C_ba(:,:,lv1)*m_a + bias);
     end
 
@@ -196,7 +197,7 @@ function err = errorMag2(x, data_synced)
     end
 
     err(3,:) = err(3,:);
-    %err(:,is_static) = 0;
+    err(:,is_static) = 0;
     err(:,is_gap) = 0;
     err = err(:);
 end
