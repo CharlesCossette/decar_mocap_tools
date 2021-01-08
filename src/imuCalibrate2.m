@@ -167,7 +167,7 @@ if any(data_synced.staticIndices)
 end
 
 variables(1).x_0 = C_ma;
-variables(1).update_func = @(X,dx)X*expm(crossOp(dx));
+variables(1).update_func = @(X,dx)expm(crossOp(dx))*X;
 variables(1).dimension = 3;
 variables(1).disabled = ~do_frame_accel;
 
