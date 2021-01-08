@@ -221,16 +221,23 @@ function [data_si, header_unitless] = convertToSI(data_raw, header)
     elseif contains(header,'(m/s^2)')
         unit = '(m/s^2)';
         data_si = data_raw;
+    elseif contains(header,'(mm/s^2)')
+        unit = '(mm/s^2)';
+        data_si = (1/1000)*data_raw;
     elseif contains(header,'(deg/s)') % Angular velocity
         data_si = (2*pi/360)*data_raw;
     elseif contains(header,'(rad/s)')
         data_si = data_raw;
+    elseif contains(header,'(mrad/s)')
+        data_si = (1/1000)*data_raw;
     elseif contains(header,'(uT)') % Magnetic field strength
         data_si = (1e-6)*data_raw;
     elseif contains(header,'(mT)')
         data_si = (1e-3)*data_raw;
     elseif contains(header,'(gauss)')
         data_si = (1e-4)*data_raw;
+    elseif contains(header,'(mgauss)')
+        data_si = (1e-4)*(1/1000)*data_raw;
     elseif contains(header,'(G)')
         data_si = (1e-4)*data_raw;
     elseif contains(header,'(T)')

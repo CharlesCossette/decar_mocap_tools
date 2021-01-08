@@ -1,4 +1,4 @@
-function [x_opt, cost_opt] = leastSquares(err_func, variables)
+function [x_opt, cost_opt] = leastSquares(err_func, variables, varargin)
 %LEASTSQUARES is a customized least squares solver capable of handling a
 % mix of different Euclidean and non-Euclidean variables (such as SO(3),
 % SE(3), etc). Uses the LEVENBERG-MARQUART method, see
@@ -24,6 +24,7 @@ function [x_opt, cost_opt] = leastSquares(err_func, variables)
 %   disabled: boolean
 %       set to true to still feed variable to error function, but not
 %       update it.
+% varargin: name-value pairs
 %
 % RETURNS:
 % -------
@@ -35,6 +36,7 @@ function [x_opt, cost_opt] = leastSquares(err_func, variables)
 % TODO: add option for analytical Jacobian
 % TODO: user toggle to use complex step.
 
+%% Input Processing
 % Test for conventional use: user supplied a single Euclidean variable
 if isa(variables,'double')
     variables(1).x_0 = variables;
@@ -55,8 +57,7 @@ end
 % value of the optimization varibles. Load default options for missing
 % fields.
 for lv1 = 1:numel(variables)
-    variables(lv1).value = variables(lv1).x_0;
-    
+    variables(lv1).value = variables(lv1).x_0;  
     
     if isempty(variables(lv1).update_func)
         variables(lv1).update_func = @(x,dx) x + dx;
@@ -69,19 +70,40 @@ for lv1 = 1:numel(variables)
     end
 end
 
-step_tol = 1e-8; % TODO: make these user options.
-grad_tol = 1e-8;
-cost_tol = 1e-4;
-max_iter = 100;
+% Default options for optional arguments
+default_step_tol = 1e-8;
+default_grad_tol = 1e-8;
+default_cost_tol = 1e-12;
+default_max_iter = 200;
+default_derivative = 'finite_difference';
+default_weighted = false;
 
+% Parse input for name-value pairs
+p = inputParser;
+addRequired(p,'err_func');
+addRequired(p,'variables');
+addParameter(p,'step_tol', default_step_tol);
+addParameter(p,'grad_tol', default_grad_tol);
+addParameter(p,'cost_tol', default_cost_tol);
+addParameter(p,'max_iter', default_max_iter);
+addParameter(p,'derivative', default_derivative);
+addParameter(p,'weighted', default_weighted);
+
+% Load input into variables.
+parse(p, err_func, variables, varargin{:})
+step_tol = p.Results.step_tol;
+grad_tol = p.Results.grad_tol;
+cost_tol = p.Results.cost_tol;
+max_iter = p.Results.max_iter;
+derivative_method = p.Results.derivative;
+is_weighted = p.Results.weighted;
+
+%% Solve
 % Display message header
-S0 = '                LEVENBERG-MARQUART OPTIMIZATION';
-disp(S0);
-displayHeader()
+disp('                LEVENBERG-MARQUART OPTIMIZATION');
 
 % Main Loop
-derivative_method = 'finite_difference';
-iter = 1;
+iter = 0;
 dx = 10;
 dJ = 10;
 nu = 2;
@@ -89,10 +111,17 @@ nu = 2;
 cost = 0.5*(e.')*e;
 A = H.'*H;
 b = H.'*e;
-mu = 1e-9*max(diag(A));
+mu = 1e-11*max(diag(A));
 while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < max_iter
     % Compute step
     dx = -(A + mu*eye(size(A)))\b;
+    
+    if mod(iter, 20) == 0
+        displayHeader()
+    end
+    disp(['   ',sprintf('%3d',iter), '   |  ',sprintf('%0.3e',cost), '  |  ',...
+        sprintf('%0.3e',norm(dx)), '  |  ',sprintf('%0.3e',norm(b)), '  |  ',...
+        sprintf('%0.3e',mu)]);
     
     % Variable values after taking the step.
     variables_new = updateAll(variables, dx);
@@ -118,10 +147,7 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
         mu = mu*nu;
         nu = 2*nu;
     end
-    if mod(iter,30) == 0
-        displayHeader()
-    end
-    disp(['   ',sprintf('%3d',iter), '   |  ',sprintf('%0.3e',cost), '  |  ',sprintf('%0.3e',norm(dx)), '  |  ',sprintf('%0.3e',norm(b)), '  |  ',sprintf('%0.3e',mu)]);
+
     iter = iter + 1;
     
 end
@@ -134,6 +160,8 @@ end
 function [H, e] = computeJacobian(err_func, variables, derivative_method)
 % Call the right derivative method depending on user input.
     switch derivative_method
+        case 'analytical'
+            [e, H] = err_func({variables(:).value});
         case 'complex_step'
             [H, e] = computeJacobianComplexStep(err_func, variables);
         case 'finite_difference'
@@ -182,11 +210,11 @@ function [H, e] = computeJacobianComplexStep(err_func, variables)
 
             x_iter_jac = update(x_iter, dx_jac);
             x_jac = x;
-            if numel(x_jac) == 1
-                x_jac = x_iter_jac;
-            else
+%             if numel(x_jac) == 1
+%                 x_jac = x_iter_jac;
+%             else
                 x_jac{lv1} = x_iter_jac;
-            end
+%             end
             err_jac = imag(err_func(x_jac))./h;
                
             H(:, counter) = err_jac(:);
@@ -234,11 +262,11 @@ function [H, e] = computeJacobianFiniteDifference(err_func, variables)
 
             x_iter_jac = update(x_iter, dx_jac);
             x_jac = x;
-            if numel(x_jac) == 1
-                x_jac = x_iter_jac;
-            else
+%             if numel(x_jac) == 1
+%                 x_jac = x_iter_jac;
+%             else
                 x_jac{lv1} = x_iter_jac;
-            end
+%             end
             err_jac = (err_func(x_jac) - e)./h;
             H(:, counter) = err_jac(:);
             counter = counter + 1;
@@ -273,9 +301,7 @@ function variables_new = updateAll(variables, dx)
 end
 
 function displayHeader()
-    % Prints the table header to screen.
-    S1 = '   Iter  |    Cost     |  Step Norm  |  Grad Norm  |     mu      ';
-    S2 = '---------|-------------|-------------|-------------|-------------';
-    disp(S1)
-    disp(S2)
+% Prints the table header to screen.
+    disp('   Iter  |    Cost     |  Step Norm  |  Grad Norm  |     mu      ');
+    disp('---------|-------------|-------------|-------------|-------------');
 end
