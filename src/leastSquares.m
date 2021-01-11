@@ -71,12 +71,13 @@ for lv1 = 1:numel(variables)
 end
 
 % Default options for optional arguments
-default_step_tol = 1e-8;
+default_step_tol = 1e-6;
 default_grad_tol = 1e-8;
-default_cost_tol = 1e-12;
+default_cost_tol = 1e-8;
 default_max_iter = 200;
 default_derivative = 'finite_difference';
 default_weighted = false;
+default_lm_switch = 8;
 
 % Parse input for name-value pairs
 p = inputParser;
@@ -88,6 +89,7 @@ addParameter(p,'cost_tol', default_cost_tol);
 addParameter(p,'max_iter', default_max_iter);
 addParameter(p,'derivative', default_derivative);
 addParameter(p,'weighted', default_weighted);
+addParameter(p,'lm_switch', default_lm_switch);
 
 % Load input into variables.
 parse(p, err_func, variables, varargin{:})
@@ -97,10 +99,11 @@ cost_tol = p.Results.cost_tol;
 max_iter = p.Results.max_iter;
 derivative_method = p.Results.derivative;
 is_weighted = p.Results.weighted;
+lm_switch = p.Results.lm_switch;
 
 %% Solve
 % Display message header
-disp('                LEVENBERG-MARQUART OPTIMIZATION');
+disp('             NONLINEAR LEAST-SQUARES OPTIMIZATION');
 
 % Main Loop
 iter = 0;
@@ -111,7 +114,8 @@ nu = 2;
 cost = 0.5*(e.')*e;
 A = H.'*H;
 b = H.'*e;
-mu = 1e-11*max(diag(A));
+mu = 0;
+mu_init = 1e-11*max(diag(A));
 while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < max_iter
     % Compute step
     dx = -(A + mu*eye(size(A)))\b;
@@ -119,7 +123,7 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
     if mod(iter, 20) == 0
         displayHeader()
     end
-    disp(['   ',sprintf('%3d',iter), '   |  ',sprintf('%0.3e',cost), '  |  ',...
+    disp(['   ',sprintf('%3d',iter), '   |  ',sprintf('%0.6e',cost), '  |  ',...
         sprintf('%0.3e',norm(dx)), '  |  ',sprintf('%0.3e',norm(b)), '  |  ',...
         sprintf('%0.3e',mu)]);
     
@@ -133,8 +137,8 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
     dJ = (cost - cost_new)/cost; % Percentage change in cost.
     
     gain_ratio = (cost - cost_new)/(0.5*dx.'*(mu*dx - b));
-    if gain_ratio > 0
-        % Sufficient reduction, set as new point
+    if gain_ratio > 0 || iter < lm_switch
+        % Step acceptable
         variables = variables_new;
         mu = mu*max(1/3,1 - (2*gain_ratio -1)^3);
         nu = 2;
@@ -147,7 +151,11 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
         mu = mu*nu;
         nu = 2*nu;
     end
-
+    
+    if iter == lm_switch
+        disp('Levenberg-Marquart activated.')
+        mu = mu_init;
+    end
     iter = iter + 1;
     
 end
@@ -200,25 +208,27 @@ function [H, e] = computeJacobianComplexStep(err_func, variables)
     H = zeros(size(e,1), sum(dims(~is_disabled)));
     counter = 1;
     for lv1 = 1:numel(variables)
-        d = variables(lv1).dimension;
-        update = variables(lv1).update_func;
-        x_iter = x{lv1};
-        for lv2 = 1:d
-            h = 1e-18;
-            dx_jac = zeros(d,1);
-            dx_jac(lv2) = h*1j;
+        if ~variables(lv1).disabled
+            d = variables(lv1).dimension;
+            update = variables(lv1).update_func;
+            x_iter = x{lv1};
+            for lv2 = 1:d
+                h = 1e-18;
+                dx_jac = zeros(d,1);
+                dx_jac(lv2) = h*1j;
 
-            x_iter_jac = update(x_iter, dx_jac);
-            x_jac = x;
-%             if numel(x_jac) == 1
-%                 x_jac = x_iter_jac;
-%             else
-                x_jac{lv1} = x_iter_jac;
-%             end
-            err_jac = imag(err_func(x_jac))./h;
-               
-            H(:, counter) = err_jac(:);
-            counter = counter + 1;
+                x_iter_jac = update(x_iter, dx_jac);
+                x_jac = x;
+    %             if numel(x_jac) == 1
+    %                 x_jac = x_iter_jac;
+    %             else
+                    x_jac{lv1} = x_iter_jac;
+    %             end
+                err_jac = imag(err_func(x_jac))./h;
+
+                H(:, counter) = err_jac(:);
+                counter = counter + 1;
+            end
         end
     end
     if counter ~= size(H,2) + 1
@@ -248,28 +258,33 @@ function [H, e] = computeJacobianFiniteDifference(err_func, variables)
     x = {variables(:).value};
     e = err_func(x);
 
-    % Compute jacobian.
-    H = zeros(size(e,1), sum([variables(:).dimension]));
+    % Compute jacobian.    
+    dims = [variables(:).dimension];
+    is_disabled = [variables(:).disabled];
+    
+    H = zeros(size(e,1), sum(dims(~is_disabled)));
     counter = 1;
     for lv1 = 1:numel(variables)
-        d = variables(lv1).dimension;
-        update = variables(lv1).update_func;
-        x_iter = x{lv1};
-        for lv2 = 1:d
-            h = 1e-8;
-            dx_jac = zeros(d,1);
-            dx_jac(lv2) = h;
+        if ~variables(lv1).disabled
+            d = variables(lv1).dimension;
+            update = variables(lv1).update_func;
+            x_iter = x{lv1};
+            for lv2 = 1:d
+                h = 1e-8;
+                dx_jac = zeros(d,1);
+                dx_jac(lv2) = h;
 
-            x_iter_jac = update(x_iter, dx_jac);
-            x_jac = x;
-%             if numel(x_jac) == 1
-%                 x_jac = x_iter_jac;
-%             else
-                x_jac{lv1} = x_iter_jac;
-%             end
-            err_jac = (err_func(x_jac) - e)./h;
-            H(:, counter) = err_jac(:);
-            counter = counter + 1;
+                x_iter_jac = update(x_iter, dx_jac);
+                x_jac = x;
+    %             if numel(x_jac) == 1
+    %                 x_jac = x_iter_jac;
+    %             else
+                    x_jac{lv1} = x_iter_jac;
+    %             end
+                err_jac = (err_func(x_jac) - e)./h;
+                H(:, counter) = err_jac(:);
+                counter = counter + 1;
+            end
         end
     end
     if counter ~= size(H,2) + 1
@@ -290,18 +305,20 @@ function variables_new = updateAll(variables, dx)
     variables_new = variables;
     
     for lv1 = 1:numel(variables)
-        x_iter = variables(lv1).value;
-        d      = variables(lv1).dimension;
-        update = variables(lv1).update_func;
+        if ~variables(lv1).disabled
+            x_iter = variables(lv1).value;
+            d      = variables(lv1).dimension;
+            update = variables(lv1).update_func;
 
-        variables_new(lv1).value = update(x_iter, dx(1:d));
-        dx = dx(d+1:end); % Chop off remaining portion.
+            variables_new(lv1).value = update(x_iter, dx(1:d));
+            dx = dx(d+1:end); % Chop off remaining portion.
+        end
     end
 
 end
 
 function displayHeader()
 % Prints the table header to screen.
-    disp('   Iter  |    Cost     |  Step Norm  |  Grad Norm  |     mu      ');
-    disp('---------|-------------|-------------|-------------|-------------');
+    disp('   Iter  |      Cost      |  Step Norm  |  Grad Norm  |     mu      ');
+    disp('---------|----------------|-------------|-------------|-------------');
 end
