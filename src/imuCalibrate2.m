@@ -1,15 +1,15 @@
 function [results, data_calibrated] = imuCalibrate2(data_synced, options, import_results)
-%IMUCALIBRATE Determines the calibration parameters of the accelerometer
+%IMUCALIBRATE2 Determines the calibration parameters of the accelerometer
 % and gyroscope, which are the sensorframe-to-bodyframe DCMs, biases, scale
 % factors, axis misalignments ("skew"), and mocap local frame gravity
 % misalignment. This is done by minimizing the dead-reckoning error.
 %
 % Example uses:
-%       results = imuCalibrate(data_synced)
-%       results = imuCalibrate(data_synced, options)
-%       results = imuCalibrate(data_synced, options, import_results)
-%       results = imuCalibrate(data_synced, [], import_results)
-%       [results, data_calibrated] = imuCalibrate(data_synced)
+%       results = imuCalibrate2(data_synced)
+%       results = imuCalibrate2(data_synced, options)
+%       results = imuCalibrate2(data_synced, options, import_results)
+%       results = imuCalibrate2(data_synced, [], import_results)
+%       [results, data_calibrated] = imuCalibrate2(data_synced)
 %
 % PARAMETERS:
 % -----------
