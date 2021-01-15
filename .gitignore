@@ -5,5 +5,7 @@ __pycache__/
 *.asv
 *.m~
 
+# Temp CSV lock file
+*.csv#
 # Temporary dev folder
 dev/

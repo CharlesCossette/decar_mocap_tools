@@ -46,12 +46,14 @@ function  data_mocap = optitrackCsvToStruct(filename)
 %           Sections of time where the rigid body was static.
 
 % Use built-in matlab function to automatically detect the header rows.
-opts = detectImportOptions(filename);
+
 header_row_range = [num2str(1),':',num2str(7)];
 
 % Store headers into cell array, data into matrix
-headers = readcell(filename,'Range',header_row_range); % MATLAB 2019a +
-data = readmatrix(filename, 'NumHeaderLines',opts.DataLine(1));
+headers = readcell(filename,'Range',header_row_range,'TextType','char'); % MATLAB 2019a +
+is_frame = cellfun(@(x) stringincell(x,'Frame'),headers);
+[row_ID,~] = find(is_frame);
+data = readmatrix(filename, 'NumHeaderLines',row_ID);
 
 %% STEP 1 - Remove any columns with barely any data
 % Criteria: If less than 10% of rows have data, delete column.
@@ -71,8 +73,9 @@ data = data(:,~to_delete);
 is_id = cellfun(@(x) stringincell(x,'ID'),headers);
 [row_ID,col_ID] = find(is_id);
 
+headers = cellfun(@(x) forceChar(x), headers,'UniformOutput',false)
 IDs = unique(headers(row_ID, col_ID + 1:end));
-
+IDs(ismember(IDs,'MARKER_FAIL')) = [];
 %% Step 3 - For each ID, get name, position, and attitude data
 % The following logical arrays are the same size as the "headers" cell
 % array.
@@ -192,3 +195,15 @@ end
 end
 
 
+function y = forceChar(x)
+
+if isa(x,'numeric')
+    if isinf(x) || isnan(x)
+        y = 'MARKER_FAIL';
+    else
+    y = num2str(x);
+    end
+else
+    y = x;
+end
+end
