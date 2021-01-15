@@ -73,7 +73,15 @@ data = data(:,~to_delete);
 is_id = cellfun(@(x) stringincell(x,'ID'),headers);
 [row_ID,col_ID] = find(is_id);
 
-headers = cellfun(@(x) forceChar(x), headers,'UniformOutput',false)
+% Sometimes the readcell() function has certain trouble with some specific
+% marker ideas for an unknown reason. Examples include 10D500, 10D501 and
+% the function just reads them as "nan" or "inf. For now, we are replacing
+% these IDs with "MARKER_FAIL", and then ignoring them.
+%
+% WARNING: If ever markers are used for an actual prupose in the future,
+% this will have to be modified. Maybe in the mocapShowMarkers() function..
+
+headers = cellfun(@(x) forceChar(x), headers,'UniformOutput',false) 
 IDs = unique(headers(row_ID, col_ID + 1:end));
 IDs(ismember(IDs,'MARKER_FAIL')) = [];
 %% Step 3 - For each ID, get name, position, and attitude data
