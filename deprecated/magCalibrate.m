@@ -1,4 +1,4 @@
-function [results, dataCalibrated, RMSE] = magCalibrate(data_synced, options, import_results)
+function [results, data_calibrated, RMSE] = magCalibrate(data_synced, options, import_results)
 %MAGCALIBRATE Calibrates a magnetometer by finding the optimal biases, 
 % rotations, axis misalignments, and local magnetic field vector .
 % Requires the complexStepJacobianLie code from decar_utils.
@@ -31,9 +31,16 @@ end
 
 %% LS Optimization on SO(3), using Gauss-Newton
 
-% initialize
-costFuncHist = [];
+% Initial guess for m_a
+% is_static = data_synced.staticIndices;
+% m_a_data = zeros(3, numel(data_synced.t));
+% for lv1=1:1:length(data_synced.t)
+%     m_a_data(:,lv1) = data_synced.C_ba(:,:,lv1).'*data_synced.mag(:,lv1);
+% end
+% m_a = mean(m_a_data(:,~is_static),2,'omitnan');
 
+% initialize
+cost_history = [];
 delta = Inf;
 iter = 0;
 while norm(delta) > tol && iter < 100
@@ -77,14 +84,14 @@ while norm(delta) > tol && iter < 100
     end
     
     cost = 0.5*(e.'*e)
-    costFuncHist = [costFuncHist; cost];
+    cost_history = [cost_history; cost];
     
     % Compute step direction
     if isempty(A)
         warning('No calibration parameters have been selected.')
         delta = 1e-16;
     else
-        if iter > 20
+        if iter > 100
             delta = -(A.'*A + 0.2*diag(diag(A.'*A))) \ (A.' * e);
         else
             delta = -(A.'*A) \( A.' * e);
@@ -93,7 +100,7 @@ while norm(delta) > tol && iter < 100
     
     % decompose and update
     if do_frame
-        del_phi_mag    = delta(phi_indices);
+        del_phi_mag = delta(phi_indices);
         C_ms_mag = C_ms_mag*expm(crossOp(del_phi_mag));
     end
     if do_mag_vector
@@ -113,8 +120,8 @@ end
 
 % compute error vector
 e = errorMag(C_ms_mag, m_a, bias_mag, skew_mag, data_synced);
-RMSE = sqrt((e.'*e)./length(data_synced.t));
-disp(['RMSE After Calibration: ' , num2str(RMSE)])
+RMSE = sqrt((e.'*e)./numel(e(e~=0)));
+disp(['RMSE After Calibration (uT): ' , num2str(RMSE)])
 
 %% Results and Output
 results.C_ms_mag = C_ms_mag;
@@ -123,59 +130,19 @@ results.bias_mag = bias_mag;
 results.scale_mag = scale_mag;
 results.skew_mag = skew_mag;
 
-% Compute calibrated m_b.
-m_b_predicted = zeros(3,length(data_synced.mag));
+% Corrected Measurements
 T_skew = eye(3);
 T_skew(1,2) = -skew_mag(3);
 T_skew(1,3) =  skew_mag(2);
 T_skew(2,3) = -skew_mag(1);
-for lv1=1:1:length(data_synced.mag)
-    m_b_predicted(:,lv1) =(T_skew*diag(scale_mag)) \ C_ms_mag' * data_synced.C_ba(:,:,lv1) * results.m_a - results.bias_mag;
-end
+data_calibrated = data_synced;
+data_calibrated.mag = C_ms_mag*T_skew*diag(scale_mag)*(data_synced.mag + results.bias_mag);
 
-dataCalibrated = data_synced;
-dataCalibrated.mag = C_ms_mag*T_skew*diag(scale_mag)*(data_synced.mag + results.bias_mag);
+plotScript(results, data_calibrated, cost_history)
+
 if is_si_units
-    dataCalibrated.mag = (1e-6)*dataCalibrated.mag;
+    data_calibrated.mag = (1e-6)*data_calibrated.mag;
 end
-%% Plotting to evaluate performance visually
-figure
-subplot(3,1,1)
-plot(data_synced.t, m_b_predicted(1,:))
-hold on
-plot(data_synced.t, data_synced.mag(1,:))
-hold off
-grid on
-xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
-ylabel('$m_b^1$ [$\mu T$]', 'Interpreter', 'Latex')
-legend('Calibrated $\mathbf{m}_b$', 'Magnetometer measurement',...
-    'Interpreter', 'Latex')
-
-subplot(3,1,2)
-plot(data_synced.t, m_b_predicted(2,:))
-hold on
-plot(data_synced.t, data_synced.mag(2,:))
-hold off
-grid on
-xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
-ylabel('$m_b^2$ [$\mu T$]', 'Interpreter', 'Latex')
-
-subplot(3,1,3)
-plot(data_synced.t, m_b_predicted(3,:))
-hold on
-plot(data_synced.t, data_synced.mag(3,:))
-hold off
-grid on
-xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
-ylabel('$m_b^3$ [$\mu T$]', 'Interpreter', 'Latex')
-
-% Plot evolution of cost function
-figure
-plot(costFuncHist)
-grid
-xlabel('Iteration Number', 'Interpreter', 'Latex')
-ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
-
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function err = errorMag(C_ms_mag, m_a, bias, skew, data_synced)
@@ -191,7 +158,7 @@ function err = errorMag(C_ms_mag, m_a, bias, skew, data_synced)
     for lv1=1:1:length(data_synced.t)
         err(:,lv1) = (m_a - data_synced.C_ba(:,:,lv1).'*mag_corrected(:,lv1));
     end
-    err(3,:) = 0.01*err(3,:);
+    %err(3,:) = 0.01*err(3,:);
     err(:,is_static) = 0;
     err(:,is_gap) = 0;
     err = err(:);
@@ -265,8 +232,93 @@ end
 if isfield(import_results,'m_a')
     m_a = import_results.m_a;
 else
-    m_a = [0; 0; 0];
+    m_a = [0;0;0];
 end
+
+end
+
+function plotScript(results, data_calibrated, cost_history)
+m_b_predicted = zeros(3,length(data_calibrated.t));
+for lv1=1:1:length(data_calibrated.t)
+    m_b_predicted(:,lv1) = data_calibrated.C_ba(:,:,lv1)*results.m_a;
+end
+
+y_mag_a = zeros(3,length(data_calibrated.t));
+for lv1=1:1:length(data_calibrated.t)
+    y_mag_a(:,lv1) = data_calibrated.C_ba(:,:,lv1).'*data_calibrated.mag(:,lv1);
+end
+
+% Plotting to evaluate performance visually
+figure
+title('Magnetometer Calibration')
+subplot(3,2,1)
+plot(data_calibrated.t, m_b_predicted(1,:))
+hold on
+plot(data_calibrated.t, data_calibrated.mag(1,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{b_x}$ [$\mu T$]', 'Interpreter', 'Latex','fontsize',14)
+title('Body Frame')
+
+
+subplot(3,2,3)
+plot(data_calibrated.t, m_b_predicted(2,:))
+hold on
+plot(data_calibrated.t, data_calibrated.mag(2,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{b_y}$ [$\mu T$]', 'Interpreter', 'Latex')
+
+subplot(3,2,5)
+plot(data_calibrated.t, m_b_predicted(3,:))
+hold on
+plot(data_calibrated.t, data_calibrated.mag(3,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{b_z}$ [$\mu T$]', 'Interpreter', 'Latex')
+legend('Calibrated $\mathbf{m}_b$', 'Calibrated Magnetometer $\mathbf{y}^{\mathrm{mag}}_b$',...
+    'Interpreter', 'Latex','location','southoutside')
+
+%%%%
+subplot(3,2,2)
+plot([data_calibrated.t(1), data_calibrated.t(end)], [results.m_a(1),results.m_a(1)])
+hold on
+plot(data_calibrated.t, y_mag_a(1,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{a_x}$ [$\mu T$]', 'Interpreter', 'Latex','fontsize',14)
+title('Local Mocap Frame')
+
+subplot(3,2,4)
+plot([data_calibrated.t(1), data_calibrated.t(end)], [results.m_a(2),results.m_a(2)])
+hold on
+plot(data_calibrated.t, y_mag_a(2,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{a_y}$ [$\mu T$]', 'Interpreter', 'Latex','fontsize',14)
+
+subplot(3,2,6)
+plot([data_calibrated.t(1), data_calibrated.t(end)], [results.m_a(3),results.m_a(3)])
+hold on
+plot(data_calibrated.t, y_mag_a(3,:))
+hold off
+grid on
+xlabel('$t$ [$s$]', 'Interpreter', 'Latex')
+ylabel('$m_{a_z}$ [$\mu T$]', 'Interpreter', 'Latex','fontsize',14)
+legend('Calibrated $\mathbf{m}_a$', 'Calibrated Magnetometer $\mathbf{y}^{\mathrm{mag}}_a$',...
+    'Interpreter', 'Latex','location','southoutside')
+
+% Plot evolution of cost function
+figure
+plot(cost_history,'linewidth',2)
+grid on
+xlabel('Iteration Number', 'Interpreter', 'Latex')
+ylabel('$J$ [$\left(m/s^2\right)^2$]', 'Interpreter', 'Latex')
 
 end
 

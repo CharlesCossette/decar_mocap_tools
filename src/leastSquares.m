@@ -78,6 +78,7 @@ default_max_iter = 200;
 default_derivative = 'finite_difference';
 default_weighted = false;
 default_lm_switch = 8;
+default_verbose = false;
 
 % Parse input for name-value pairs
 p = inputParser;
@@ -90,6 +91,7 @@ addParameter(p,'max_iter', default_max_iter);
 addParameter(p,'derivative', default_derivative);
 addParameter(p,'weighted', default_weighted);
 addParameter(p,'lm_switch', default_lm_switch);
+addParameter(p,'verbose', default_verbose);
 
 % Load input into variables.
 parse(p, err_func, variables, varargin{:})
@@ -100,10 +102,13 @@ max_iter = p.Results.max_iter;
 derivative_method = p.Results.derivative;
 is_weighted = p.Results.weighted;
 lm_switch = p.Results.lm_switch;
+verbose = p.Results.verbose;
 
 %% Solve
 % Display message header
-disp('             NONLINEAR LEAST-SQUARES OPTIMIZATION');
+if verbose
+    disp('             NONLINEAR LEAST-SQUARES OPTIMIZATION');
+end
 
 % Main Loop
 iter = 0;
@@ -120,13 +125,18 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
     % Compute step
     dx = -(A + mu*eye(size(A)))\b;
     
-    if mod(iter, 20) == 0
+    if mod(iter, 20) == 0 && verbose
         displayHeader()
     end
-    disp(['   ',sprintf('%3d',iter), '   |  ',sprintf('%0.6e',cost), '  |  ',...
-        sprintf('%0.3e',norm(dx)), '  |  ',sprintf('%0.3e',norm(b)), '  |  ',...
-        sprintf('%0.3e',mu)]);
-    
+    if verbose
+        disp(['   ',...
+            sprintf('%3d',iter), '   |  ',...
+            sprintf('%0.6e',cost), '  |  ',...
+            sprintf('%0.3e',norm(dx)), '  |  ',...
+            sprintf('%0.3e',norm(b)), '  |  ',...
+            sprintf('%0.3e',mu)...
+            ]);
+    end
     % Variable values after taking the step.
     variables_new = updateAll(variables, dx);
     
@@ -153,7 +163,9 @@ while norm(dx) > step_tol && abs(dJ) > cost_tol && norm(b) > grad_tol && iter < 
     end
     
     if iter == lm_switch
-        disp('Levenberg-Marquart activated.')
+        if verbose
+            disp('Levenberg-Marquart activated.')
+        end
         mu = mu_init;
     end
     iter = iter + 1;

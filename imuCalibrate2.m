@@ -1,4 +1,4 @@
-function [results, data_calibrated] = imuCalibrate2(data_synced, options, import_results)
+function [results, data_calibrated] = imuCalibrate2(data_synced, options, import_results, verbose)
 %IMUCALIBRATE Determines the calibration parameters of the accelerometer
 % and gyroscope, which are the sensorframe-to-bodyframe DCMs, biases, scale
 % factors, axis misalignments ("skew"), and mocap local frame gravity
@@ -9,6 +9,7 @@ function [results, data_calibrated] = imuCalibrate2(data_synced, options, import
 %       results = imuCalibrate(data_synced, options)
 %       results = imuCalibrate(data_synced, options, import_results)
 %       results = imuCalibrate(data_synced, [], import_results)
+%       results = imuCalibrate(data_synced, [],[], 'verbose')
 %       [results, data_calibrated] = imuCalibrate(data_synced)
 %
 % PARAMETERS:
@@ -112,6 +113,10 @@ if nargin < 3
     end
     import_results = struct();
 end
+if nargin < 4
+    verbose = false;
+end
+
 [tol, do_frame_accel, do_bias_accel, do_scale_accel, do_skew_accel,...
 do_frame_gyro, do_bias_gyro, do_scale_gyro, do_skew_gyro, do_grav, params]...
                                                        = processOptions(options);
@@ -144,7 +149,7 @@ variables(4).disabled = ~do_skew_gyro;
 
 err_func = @(x) imuGyroDeadReckoningError2(x, data_synced, params);  
 
-x_opt = leastSquares(err_func, variables);
+x_opt = leastSquares(err_func, variables, 'verbose',  any(logical(verbose)));
 
 C_mg = x_opt{1};
 bias_g = x_opt{2};
@@ -186,7 +191,7 @@ variables(5).dimension = 2;
 variables(5).disabled = ~do_grav;
 err_func = @(x) imuAccelDeadReckoningError2(x, data_synced, params);  
 
-x_opt = leastSquares(err_func, variables);
+x_opt = leastSquares(err_func, variables, 'verbose', any(logical(verbose))); 
 
 C_ma = x_opt{1};
 bias_a = x_opt{2};
