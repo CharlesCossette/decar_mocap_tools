@@ -16,7 +16,6 @@ function data_corrected = mocapSetBodyFrameZaxisUp(data_mocap, name)
         disp([newline, '>>>>>>>> ', name, ' <<<<<<<<', newline]);
         disp('did not start pointing upwards. Do you want me to change the');
         disp('axes of the body frame so that the Z axis points up at the start?')
-        disp('if the body is simply not oriented with Z pointing up.');
         disp(newline)
         is_vertical = input('Response (y/n):','s');
         switch is_vertical
