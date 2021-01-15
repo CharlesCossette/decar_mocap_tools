@@ -51,6 +51,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     default_force_sync = false;
     default_manual_offset = false;
     default_accel_threshold = 12;
+    default_verbose = false;
     
     % Parse input for name-value pairs
     p = inputParser;
@@ -59,6 +60,7 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     addParameter(p,'accel_threshold',default_accel_threshold);
     addParameter(p,'force_sync', default_force_sync);
     addParameter(p,'manual_offset', default_manual_offset);
+    addParameter(p,'verbose', default_verbose);
     
     % Load input into variables.
     parse(p, spline_struct, data_imu, varargin{:})
@@ -66,7 +68,8 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     data_imu = p.Results.data_imu;
     accel_threshold = p.Results.accel_threshold;
     manual_offset = p.Results.manual_offset;
-    force_sync = p.Results.force_sync;    
+    force_sync = p.Results.force_sync;  
+    verbose = p.Results.verbose;
     
     g_a = [0;0;-9.80665]; % gravity 
     
@@ -128,9 +131,14 @@ function [data_synced, offset] = imuMocapSync(spline_struct, data_imu, varargin)
     % TODO: make this step optional, as it takes a decent amount of time.
     % TODO: add scaling factor? t_synced_refined = scale*(t_synced + dt);
     if ~force_sync
+        if verbose
+            print_details = 'iter-detailed';
+        else
+            print_details = 'off';
+        end
         f = @(dt) errorSyncTime(dt, t_synced, spline_struct, imu_acc_synced, imu_gyr_synced);
         options = optimoptions('lsqnonlin', 'Algorithm','levenberg-marquardt',...
-                               'display','iter-detailed','steptolerance',1e-8,...
+                               'display',print_details,'steptolerance',1e-8,...
                                'InitDamping',0);
         dt = lsqnonlin(f,0,[],[],options);
 
