@@ -1,7 +1,7 @@
 function [x_opt, cost_opt] = leastSquares(err_func, variables, varargin)
 %LEASTSQUARES is a customized least squares solver capable of handling a
 % mix of different Euclidean and non-Euclidean variables (such as SO(3),
-% SE(3), etc). Uses the LEVENBERG-MARQUART method, see
+% SE(3), etc). Uses the LEVENBERG-MARQUARDT method, see
 %
 % Madsen, K., Nielsen, H. B., & Tingless, O. (2004).
 % Methods for Non-Linear Least Squares Problems.

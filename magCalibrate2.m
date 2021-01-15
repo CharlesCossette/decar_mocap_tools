@@ -269,7 +269,7 @@ function plotScript(results, data_calibrated)
     axis([-inf inf -1 1])
     title('Body frame')
     legend('Magnetometer measurement','$\mathbf{m}_b$','interpreter','latex','fontsize',11)
-    ylabel('$m_{a_x}$','interpreter','latex','fontsize',14)
+    ylabel('$m_{b_x}$','interpreter','latex','fontsize',14)
     
     subplot(3,1,2)
     plot(data_calibrated.t, data_calibrated.mag(2,:),'linewidth',2)
@@ -278,7 +278,7 @@ function plotScript(results, data_calibrated)
     hold off
     grid on
     axis([-inf inf -1 1])
-    ylabel('$m_{a_y}$','interpreter','latex','fontsize',14)
+    ylabel('$m_{b_y}$','interpreter','latex','fontsize',14)
     
     subplot(3,1,3)
     plot(data_calibrated.t, data_calibrated.mag(3,:),'linewidth',2)
@@ -287,6 +287,6 @@ function plotScript(results, data_calibrated)
     hold off
     grid on
     axis([-inf inf -1 1])
-    ylabel('$m_{a_z}$','interpreter','latex','fontsize',14)
+    ylabel('$m_{b_z}$','interpreter','latex','fontsize',14)
     xlabel('Time (s)','interpreter','latex','fontsize',14)
 end

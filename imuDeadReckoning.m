@@ -73,7 +73,7 @@ switch method
             omega_ba_b = dataIMU.gyro(:,measurement_index);
             a_zwa_b = dataIMU.accel(:,measurement_index);
             
-            C_ba_so3(:,:,lv1+1) = ROTVEC_TO_DCM(omega_ba_b*dt)*C_ba_so3(:,:,lv1);
+            C_ba_so3(:,:,lv1+1) = rotvecToDcm(omega_ba_b*dt)*C_ba_so3(:,:,lv1);
             v_zwa_a_so3(:,lv1+1) = v_zwa_a_so3(:,lv1) + (C_ba_so3(:,:,lv1).'*a_zwa_b + g_a)*dt;
             r_zw_a_so3(:,lv1+1) = r_zw_a_so3(:,lv1) + v_zwa_a_so3(:,lv1)*dt;
             a_zwa_a_so3(:,lv1) = C_ba_so3(:,:,lv1).'*a_zwa_b + g_a;
