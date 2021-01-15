@@ -14,12 +14,11 @@ function data_corrected = mocapSetBodyFrameZaxisUp(data_mocap, name)
         % Then the Z-axis is not up! Assuming y axis is up.
         disp('WARNING: We have detected that the Z axis of the body frame of');
         disp([newline, '>>>>>>>> ', name, ' <<<<<<<<', newline]);
-        disp('did not start pointing upwards. We cannot tell if this is');
-        disp('because the body frame was not defined with Z pointing up, or ')
+        disp('did not start pointing upwards. Do you want me to change the');
+        disp('axes of the body frame so that the Z axis points up at the start?')
         disp('if the body is simply not oriented with Z pointing up.');
         disp(newline)
-        is_vertical = input(['Was ', name,' vertical (i.e. intended Z-up) ',...
-                            newline, ' at the start of the take? (y/n)'],'s');
+        is_vertical = input('Response (y/n):','s');
         switch is_vertical
             case {'y','yes'}
 
